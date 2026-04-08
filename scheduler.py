@@ -151,7 +151,7 @@ async def send_scheduled_summaries():
                 ]
                 embed.add_field(name="📂 By Category", value="\n".join(lines), inline=False)
 
-            embed.set_footer(text=f"FinanceTracker · {len(entries)} entries this period")
+            embed.set_footer(text=f"Wallet Tracker · {len(entries)} entries this period")
 
             await channel.send(embed=embed)
             print(f"[Scheduler] Sent summary for user {user_id} in guild {guild_id}.")

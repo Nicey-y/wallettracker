@@ -62,7 +62,7 @@ async def on_guild_join(guild):
 # --- Slash Commands ---
 
 @bot.tree.command(name="ping",
-                  description="Check if FinanceTracker is online")
+                  description="Check if Wallet Tracker is online")
 async def ping(interaction: discord.Interaction):
     """ A simple test command. If this works, everything is wired up correctly.
 
@@ -70,7 +70,7 @@ async def ping(interaction: discord.Interaction):
         interaction (discord.Interaction): _description_
     """
     await interaction.response.send_message(
-        f"Pong! FinanceTracker is online. Latency: {round(bot.latency * 1000)}ms",
+        f"Pong! Wallet Tracker is online. Latency: {round(bot.latency * 1000)}ms",
         ephemeral=True # ephemeral=True means only the person who ran the command can see the reply
     )
 

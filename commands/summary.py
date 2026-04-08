@@ -95,7 +95,7 @@ class SummaryCommands(app_commands.Group):
         colour = discord.Colour.red() if over_budget else discord.Colour.green()
 
         embed = discord.Embed(
-            title=f"📊 FinanceTracker Summary",
+            title=f"📊 Wallet Tracker Summary",
             description=f"**{budget_period.capitalize()}** budget period · since {period_start[:10]}",
             colour=colour
         )
@@ -144,7 +144,7 @@ class SummaryCommands(app_commands.Group):
 
         # embed is a structured card with a coloured sidebar, fields, and a footer. 
         # The colour is green if you're under budget and red if you're over
-        embed.set_footer(text=f"FinanceTracker · {len(entries)} entries this period")
+        embed.set_footer(text=f"Wallet Tracker · {len(entries)} entries this period")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

@@ -5,12 +5,12 @@ import database
 
 # discord.ui.Modal is Discord's built-in pop-up form system
 class QuickSetupModal(discord.ui.Modal,
-                      title="FinanceTracker Quick Setup"):
+                      title="Wallet Tracker Quick Setup"):
     """A pop-up form that collects all setup info in one go.
 
     Args:
         discord (_type_): _description_
-        title (str, optional): _description_. Defaults to "FinanceTracker Quick Setup".
+        title (str, optional): _description_. Defaults to "Wallet Tracker Quick Setup".
     """
 
     budget_amount = discord.ui.TextInput(
@@ -111,7 +111,7 @@ class QuickSetupModal(discord.ui.Modal,
         ).strftime("%H:%M, %A %d %B %Y")
 
         await interaction.response.send_message(
-            f"✅ **FinanceTracker is all set up!**\n\n"
+            f"✅ **Wallet Tracker is all set up!**\n\n"
             f"💰 **Budget:** ${amount:.2f} per {period}\n"
             f"📢 **Summary channel:** {channel.mention}\n"
             f"🌏 **Timezone:** `{tz}` (your local time: {local_time})\n\n"
@@ -135,7 +135,7 @@ class QuickSetupCommands(app_commands.Group):
 
     def __init__(self):
         super().__init__(name="quicksetup", 
-                         description="Set up FinanceTracker in one go")
+                         description="Set up Wallet Tracker in one go")
         
     @app_commands.command(name="start",
                           description="Run the quick setup wizard to get started")
