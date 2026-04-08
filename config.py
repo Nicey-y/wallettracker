@@ -9,3 +9,4 @@ GUILD_IDS = [
     int(os.getenv("GUILD_ID_2")),
     int(os.getenv("GUILD_ID_3")),
 ]
+

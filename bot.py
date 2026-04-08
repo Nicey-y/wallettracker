@@ -40,19 +40,21 @@ async def on_ready():
     await database.init_db()
 
     start_scheduler(bot) 
+    
+    print("About to sync...")
 
-    for guild_id in config.GUILD_IDS:
-        # Sync slash commands to your test server.
-        # This tells Discord "here are the commands this bot has".
-        guild = discord.Object(id=guild_id)
-
-        # guild= makes it sync instantly to just your test server.
-        # Without guild=, it syncs globally but takes up to an hour to propagate.
-        bot.tree.copy_global_to(guild=guild)
-
-        await bot.tree.sync(guild=guild)
-        print(f"Slash commands synced to guild {guild_id}.")
-    print("All guilds synced.")
+    try:
+        for guild_id in config.GUILD_IDS:
+            print(f"Syncing to guild {guild_id}...")
+            guild = discord.Object(id=guild_id)
+            bot.tree.copy_global_to(guild=guild)
+            await bot.tree.sync(guild=guild)
+            print(f"Synced to guild {guild_id}.")
+        print("All guilds synced.")
+    except Exception as e:
+        import traceback
+        print(f"Sync error: {e}")
+        traceback.print_exc()
 
 @bot.event
 async def on_guild_join(guild):
