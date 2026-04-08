@@ -11,7 +11,7 @@ class HelpCommands(app_commands.Group):
     async def show(self, interaction: discord.Interaction):
 
         embed = discord.Embed(
-            title="⸜(｡˃ ᵕ ˂ )⸝♡ Wallet Tracker — Command Reference",
+            title="⸜(｡˃ ᵕ ˂ )⸝♡ Wallet Tracker - Command Reference",
             description="Here's everything you can do with Wallet Tracker.",
             colour=discord.Colour.blurple()
         )
@@ -19,7 +19,7 @@ class HelpCommands(app_commands.Group):
         embed.add_field(
             name="🚀 Getting Started",
             value=(
-                "`/quicksetup start` — Set up your budget, summary channel, and timezone in one go\n"
+                "`/quicksetup start`: Set up your budget, summary channel, and timezone in one go\n"
             ),
             inline=False
         )
@@ -27,10 +27,10 @@ class HelpCommands(app_commands.Group):
         embed.add_field(
             name="💸 Logging Spending",
             value=(
-                "`/log spend` — Log a new spending entry\n"
-                "`/log list` — View your recent entries with their IDs\n"
-                "`/log edit` — Edit an existing entry by ID\n"
-                "`/log delete` — Delete an entry by ID (with confirmation)\n"
+                "`/log spend`: Log a new spending entry\n"
+                "`/log list`: View your recent entries with their IDs\n"
+                "`/log edit`: Edit an existing entry by ID\n"
+                "`/log delete`: Delete an entry by ID (with confirmation)\n"
             ),
             inline=False
         )
@@ -38,8 +38,8 @@ class HelpCommands(app_commands.Group):
         embed.add_field(
             name="💰 Budget",
             value=(
-                "`/budget set` — Set your budget amount and period\n"
-                "`/budget setchannel` — Set the channel for automatic summaries\n"
+                "`/budget set`: Set your budget amount and period\n"
+                "`/budget setchannel`: Set the channel for automatic summaries\n"
             ),
             inline=False
         )
@@ -47,8 +47,8 @@ class HelpCommands(app_commands.Group):
         embed.add_field(
             name="📊 Summary",
             value=(
-                "`/summary show` — View your spending summary for the current period\n"
-                "`/summary settimezone` — Set your local timezone for scheduled summaries\n"
+                "`/summary show`: View your spending summary for the current period\n"
+                "`/summary settimezone`: Set your local timezone for scheduled summaries\n"
             ),
             inline=False
         )
