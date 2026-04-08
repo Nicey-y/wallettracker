@@ -16,6 +16,11 @@ class HelpCommands(app_commands.Group):
             colour=discord.Colour.blurple()
         )
 
+        embed.set_author(
+            name="🖊️ See full documentation here!!!",
+            url="https://dent-apple-062.notion.site/wallet-tracker-documentation-33cec5b29929801d81dcf5b5bf6b71e4?source=copy_link"
+        )
+
         embed.add_field(
             name="🚀 Getting Started",
             value=(
