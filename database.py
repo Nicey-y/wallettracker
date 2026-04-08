@@ -3,7 +3,7 @@ import aiosqlite
 RECENT_ENTRY_EDIT_LIMIT = 10
 HARD_ENTRY_EDIT_LIMIT = 25
 
-DB_PATH = "financetracker.db"
+DB_PATH = "wallettracker.db"
 
 async def init_db():
     """ Create the databse tables if they don't exist yet.
