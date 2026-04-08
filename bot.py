@@ -77,7 +77,7 @@ async def ping(interaction: discord.Interaction):
     """
     await interaction.response.send_message(
         f"Pong! Wallet Tracker is online. Latency: {round(bot.latency * 1000)}ms",
-        ephemeral=True # ephemeral=True means only the person who ran the command can see the reply
+        ephemeral=False
     )
 
 @bot.tree.error

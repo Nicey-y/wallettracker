@@ -41,7 +41,7 @@ class BudgetCommands(app_commands.Group):
         if amount <= 0:
             await interaction.response.send_message(
                 "❌ Budget must be greater than zero.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -55,7 +55,7 @@ class BudgetCommands(app_commands.Group):
         await interaction.response.send_message(
             f"✅ Budget set to **${amount:.2f}** per **{period.name.lower()}**.\n"
             f"FinanceTracker will track your spending against this budget.",
-            ephemeral=True
+            ephemeral=False
         )
 
     # '/budget setchannel' command
@@ -77,5 +77,5 @@ class BudgetCommands(app_commands.Group):
 
         await interaction.response.send_message(
             f"Automatic summaries will be posted in {channel.mention}.",
-            ephemeral=True
+            ephemeral=False
         )

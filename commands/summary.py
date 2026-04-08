@@ -63,7 +63,7 @@ class SummaryCommands(app_commands.Group):
         if budget_row is None:
             await interaction.response.send_message(
                 "❌ You haven't set a budget yet. Run `/budget set` first.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -146,7 +146,7 @@ class SummaryCommands(app_commands.Group):
         # The colour is green if you're under budget and red if you're over
         embed.set_footer(text=f"Wallet Tracker · {len(entries)} entries this period")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
 
     @app_commands.command(name="settimezone",
                           description="Set your local timezone for scheduled summaries")
@@ -160,7 +160,7 @@ class SummaryCommands(app_commands.Group):
                 f"❌ `{tz}` is not a valid timezone.\n"
                 f"Use the format `Region/City` e.g. `Australia/Melbourne`, `Europe/London`, `America/New_York`.\n"
                 f"Full list: <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -172,5 +172,5 @@ class SummaryCommands(app_commands.Group):
         await interaction.response.send_message(
             f"✅ Timezone set to `{tz}`.\n"
             f"Your current local time is **{local_time}**.",
-            ephemeral=True
+            ephemeral=False
         )
