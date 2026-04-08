@@ -28,6 +28,10 @@ wallet tracker is a bot that tracks your spending across a time period through y
 
 `/summary settimezone` : Set/Update your local time zone for scheduled summaries
 
+`/summary optout` : Stop receiving automatic summaries
+
+`/summary optin` : Resume receiving automatic summaries
+
 ## 2.4. Other
 
 `/ping` : Check if bot is online

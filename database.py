@@ -29,10 +29,11 @@ async def init_db():
         # Create a table named `budgets` that stores user-customised budgets
         await db.execute("""
             CREATE TABLE IF NOT EXISTS budgets (
-                guild_id        TEXT NOT NULL,
-                user_id         TEXT NOT NULL,
-                budget_amount   REAL NOT NULL,
-                budget_period   TEXT NOT NULL DEFAULT 'weekly',
+                guild_id       TEXT NOT NULL,
+                user_id        TEXT NOT NULL,
+                budget_amount  REAL NOT NULL,
+                budget_period  TEXT NOT NULL DEFAULT 'weekly',
+                opted_in       INTEGER NOT NULL DEFAULT 1,
                 PRIMARY KEY (guild_id, user_id)
             )
         """)
@@ -244,6 +245,38 @@ async def set_budget(user_id: str,
             # (which is the primary key we defined), update it instead of throwing an error
         await db.commit()
 
+async def set_opted_in(user_id: str, guild_id: str, opted_in: bool):
+    """Sets the opted_in flag for a user's budget.
+    
+    Args:
+        opted_in: True to opt in, False to opt out.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            UPDATE budgets
+            SET opted_in = ?
+            WHERE user_id = ? AND guild_id = ?
+            """,
+            (1 if opted_in else 0, user_id, guild_id)
+        )
+        await db.commit()
+
+
+async def get_opted_in(user_id: str, guild_id: str) -> bool:
+    """Returns True if the user is opted in to automatic summaries, False otherwise."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            """
+            SELECT opted_in FROM budgets
+            WHERE user_id = ? AND guild_id = ?
+            """,
+            (user_id, guild_id)
+        ) as cursor:
+            row = await cursor.fetchone()
+            # If no budget row exists at all, treat as opted out
+            return bool(row[0]) if row else False
+
 async def get_budget(user_id: str, guild_id: str):
     """ Fetches the budget for a user in a server.
     Returns a row (budget_amount, budget_period) or None if no budget is set.
@@ -295,15 +328,13 @@ async def get_entries(user_id: str,
             #  (8.00, 'transport', 'bus', '2024-01-02 08:30:00')]
 
 async def get_all_budgets():
-    """ Fetches every budget row across all users and servers.
-    Used by the scheduler to know who to send the summaries to.
-    Returns a list of (user_id, guild_id, budget_amount, budget_period).
+    """Fetches every budget row across all users and servers.
+    Returns a list of (user_id, guild_id, budget_amount, budget_period, opted_in).
     """
-
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            """ 
-            SELECT user_id, guild_id, budget_amount, budget_period
+            """
+            SELECT user_id, guild_id, budget_amount, budget_period, opted_in
             FROM budgets
             """
         ) as cursor:

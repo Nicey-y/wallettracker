@@ -52,8 +52,10 @@ class HelpCommands(app_commands.Group):
         embed.add_field(
             name="📊 Summary",
             value=(
-                "`/summary show`: View your spending summary for the current period\n"
-                "`/summary settimezone`: Set your local timezone for scheduled summaries\n"
+                "`/summary show` — View your spending summary for the current period\n"
+                "`/summary settimezone` — Set your local timezone for scheduled summaries\n"
+                "`/summary optout` — Stop receiving automatic summaries\n"
+                "`/summary optin` — Resume receiving automatic summaries\n"
             ),
             inline=False
         )
