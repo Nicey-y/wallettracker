@@ -54,6 +54,6 @@ wallet tracker is a bot that tracks your spending across a time period through y
 
 *Because I’m dirt poor, I’m on the free version of Railway that doesn’t have persistent storage, which means **every time a new update is published, all previous data is lost**. If you are one of the 3 people who actually use this bot, I will tell you when I publish an update, which I will try not not do so frequently.*
 
-# *ModLove,*
+*ModLove,*
 
-## *Nicey*
+*Nicey*
