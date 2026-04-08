@@ -91,8 +91,10 @@ async def send_scheduled_summaries():
 
     try:
         all_budgets = await database.get_all_budgets()
+        # row indices: 0=user_id, 1=guild_id, 2=budget_amount, 3=budget_period, 4=opted_in
+        relevant = [row for row in all_budgets if row[3] == budget_period and row[4] == 1]
 
-        for user_id, guild_id, budget_amount, budget_period in all_budgets:
+        for user_id, guild_id, budget_amount, budget_period, _ in relevant:
 
             # Get user's timezone
             user_tz = await database.get_user_timezone(user_id)

@@ -174,3 +174,71 @@ class SummaryCommands(app_commands.Group):
             f"Your current local time is **{local_time}**.",
             ephemeral=False
         )
+
+    @app_commands.command(name="optout", description="Stop receiving automatic spending summaries")
+    async def optout(self, interaction: discord.Interaction):
+        user_id  = str(interaction.user.id)
+        guild_id = str(interaction.guild.id)
+
+        # Check they actually have a budget set
+        budget_row = await database.get_budget(user_id, guild_id)
+        if budget_row is None:
+            await interaction.response.send_message(
+                "❌ You don't have a budget set up yet. Run `/quicksetup start` first.",
+                ephemeral=True
+            )
+            return
+
+        # Check if they're already opted out
+        if not await database.get_opted_in(user_id, guild_id):
+            await interaction.response.send_message(
+                "You're already opted out of automatic summaries. "
+                "Run `/summary optin` to opt back in.",
+                ephemeral=True
+            )
+            return
+
+        await database.set_opted_in(user_id, guild_id, False)
+
+        await interaction.response.send_message(
+            "✅ You've opted out of automatic summaries.\n"
+            "Your budget and spending data are still saved — run `/summary optin` any time to opt back in.\n"
+            "You can still view your summary manually with `/summary show`.",
+            ephemeral=True
+        )
+
+    @app_commands.command(name="optin", 
+                          description="Resume receiving automatic spending summaries")
+    async def optin(self, interaction: discord.Interaction):
+        user_id  = str(interaction.user.id)
+        guild_id = str(interaction.guild.id)
+
+        # Check they actually have a budget set
+        budget_row = await database.get_budget(user_id, guild_id)
+        if budget_row is None:
+            await interaction.response.send_message(
+                "❌ You don't have a budget set up yet. Run `/quicksetup start` first.",
+                ephemeral=True
+            )
+            return
+
+        # Check if they're already opted in
+        if await database.get_opted_in(user_id, guild_id):
+            await interaction.response.send_message(
+                "You're already opted in to automatic summaries. "
+                "Run `/summary optout` to opt out.",
+                ephemeral=True
+            )
+            return
+
+        await database.set_opted_in(user_id, guild_id, True)
+
+        # Fetch their budget details to show in the confirmation
+        budget_amount, budget_period = budget_row
+
+        await interaction.response.send_message(
+            f"✅ You've opted back in to automatic summaries.\n"
+            f"You'll receive a **{budget_period}** summary at **8pm your local time** "
+            f"at the end of each {budget_period} period.",
+            ephemeral=True
+        )
