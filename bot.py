@@ -9,6 +9,7 @@ from commands.log import LogCommands
 from commands.budget import BudgetCommands
 from commands.summary import SummaryCommands
 from commands.quicksetup import QuickSetupCommands
+from commands.help import HelpCommands
 from scheduler import start_scheduler
 
 # --- Bot setup ---
@@ -25,6 +26,7 @@ bot.tree.add_command(LogCommands())
 bot.tree.add_command(BudgetCommands())
 bot.tree.add_command(SummaryCommands())
 bot.tree.add_command(QuickSetupCommands())
+bot.tree.add_command(HelpCommands())
 
 # --- Events ---
 
