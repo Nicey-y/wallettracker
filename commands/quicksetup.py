@@ -93,7 +93,7 @@ class QuickSetupModal(discord.ui.Modal,
         if errors:
             await interaction.response.send_message(
                 "\n\n".join(errors),
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -116,7 +116,7 @@ class QuickSetupModal(discord.ui.Modal,
             f"📢 **Summary channel:** {channel.mention}\n"
             f"🌏 **Timezone:** `{tz}` (your local time: {local_time})\n\n"
             f"You can start logging spending with `/log spend`.",
-            ephemeral=True
+            ephemeral=False
         )
     
     async def on_error(self, 
@@ -128,7 +128,7 @@ class QuickSetupModal(discord.ui.Modal,
         traceback.print_exc()
         await interaction.response.send_message(
             "❌ Something went wrong during setup. Please try again.",
-            ephemeral=True
+            ephemeral=False
         )
 
 class QuickSetupCommands(app_commands.Group):

@@ -26,7 +26,7 @@ class DeleteConfirmView(discord.ui.View):
         if str(interaction.user.id) != self.user_id:
             await interaction.response.send_message(
                 "❌ These buttons aren't for you.",
-                ephemeral=True
+                ephemeral=False
             )
             return False
         return True
@@ -135,7 +135,7 @@ class LogCommands(app_commands.Group):
         if amount <= 0:
             await interaction.response.send_message(
                 "❌ Amount must be greater than zero.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -152,7 +152,7 @@ class LogCommands(app_commands.Group):
         note_line = f"\n📝 Note: {note}" if note else ""
         await interaction.response.send_message(
             f"✅ Logged **${amount:.2f}** for **{category.name}**{note_line}",
-            ephemeral=True
+            ephemeral=False
         )
 
     # '/log list' command to get a list of recent entries
@@ -167,7 +167,7 @@ class LogCommands(app_commands.Group):
         if limit < 1 or limit > database.HARD_ENTRY_EDIT_LIMIT:
             await interaction.response.send_message(
                 "❌ Limit must be between 1 and 25.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -178,7 +178,7 @@ class LogCommands(app_commands.Group):
         if not entries:
             await interaction.response.send_message(
                 "You have no logged entries yet. Use `/log spend` to add one.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -199,7 +199,7 @@ class LogCommands(app_commands.Group):
         embed.add_field(name="Entries", value="\n".join(lines), inline=False)
         embed.set_footer(text="Use /log edit or /log delete with the entry ID to modify an entry.")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
 
     # '/log edit' to edit an entry based on entry_id
     @app_commands.command(name="edit",
@@ -223,14 +223,14 @@ class LogCommands(app_commands.Group):
             await interaction.response.send_message(
                 "❌ Please provide at least one field to update "
                 "(amount, category, or note).",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
         if amount is not None and amount <= 0:
             await interaction.response.send_message(
                 "❌ Amount must be greater than zero.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -250,7 +250,7 @@ class LogCommands(app_commands.Group):
             await interaction.response.send_message(
                 f"❌ No entry found with ID `#{entry_id}`. "
                 f"Use `/log list` to see your entries and their IDs.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -265,7 +265,7 @@ class LogCommands(app_commands.Group):
 
         await interaction.response.send_message(
             f"✅ Entry `#{entry_id}` updated:\n" + "\n".join(changes),
-            ephemeral=True
+            ephemeral=False
         )
 
     # '/log delete' command to delete an entry
@@ -289,7 +289,7 @@ class LogCommands(app_commands.Group):
             await interaction.response.send_message(
                 f"❌ No entry found with ID `#{entry_id}`. "
                 f"Use `/log list` to see your entries and their IDs.",
-                ephemeral=True
+                ephemeral=False
             )
             return
         
@@ -319,5 +319,5 @@ class LogCommands(app_commands.Group):
         await interaction.response.send_message(
             embed=embed,
             view=view,
-            ephemeral=True
+            ephemeral=False
         )

@@ -72,4 +72,4 @@ class HelpCommands(app_commands.Group):
 
         embed.set_footer(text="Wallet Tracker · Use /quicksetup start to get started")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
