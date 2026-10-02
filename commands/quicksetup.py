@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 import pytz
 import database
+from utils.validate import *
 
 # discord.ui.Modal is Discord's built-in pop-up form system
 class QuickSetupModal(discord.ui.Modal,
@@ -55,39 +56,34 @@ class QuickSetupModal(discord.ui.Modal,
         errors = []
 
         # --- Validate budget amount ---
-        try:
-            amount = float(self.budget_amount.value)
-            if amount <= 0:
-                errors.append("❌ Budget amount must be greater than zero.")
-        except ValueError:
-            errors.append("❌ Budget amount must be a number (e.g. 500 or 99.99).")
-            amount = None
+        amount = float(self.budget_amount.value)
+        msg = validate_amount(amount)
+        if msg:
+            errors.append(msg)
 
         # --- Validate budget period ---
+        # validate_period
         period = self.budget_period.value.strip().lower()
-        if period not in ("daily", "weekly", "monthly"):
-            errors.append("❌ Budget period must be `daily`, `weekly`, or `monthly`.")
+        msg = validate_period(period)
+        if msg:
+            errors.append(msg)
         
         # --- Validate timezone ---
         tz = self.user_timezone.value.strip()
-        if tz not in pytz.all_timezones:
-            errors.append(
-                f"❌ `{tz}` is not a valid timezone. "
-                f"Use the format `Region/City` e.g. `Australia/Melbourne`.\n"
-                f"Full list: <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>"
-            )
+        msg = validate_timezone(tz)
+        if msg:
+            errors.append(msg)
         
         # --- Validate channel ---
         # The user types a channel name, so we look it up in the guild
         channel_name = self.summary_channel.value.strip().lstrip("#")
 
         # searches the server's channel list by name
+        # validate_channel
         channel = discord.utils.get(self.guild.text_channels, name=channel_name)
-        if channel is None:
-            errors.append(
-                f"❌ Could not find a text channel named `#{channel_name}` in this server. "
-                f"Make sure the name is spelled exactly right."
-            )
+        msg = validate_channel(channel)
+        if msg:
+            errors.append(msg)
         
         # If any validation failed, show all errors at once ---
         if errors:

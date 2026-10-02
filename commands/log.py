@@ -1,11 +1,13 @@
 import discord
 from discord import app_commands
 import database
+from utils.validate import *
 
-DELETE_VIEW_TIMEOUT = 30 # time out after 30 seconds
+DELETE_VIEW_TIMEOUT = 30
 
 class DeleteConfirmView(discord.ui.View):
-    """Two-button confirmation view for deleting an entry.
+    """
+    Two-button confirmation view for deleting an entry.
     Times out after 30 seconds if user doesn't respond.
 
     Args:
@@ -20,7 +22,8 @@ class DeleteConfirmView(discord.ui.View):
     async def interaction_check(self, 
                                 interaction: discord.Interaction
                                 ) -> bool:
-        """Makes sure only the user who ran the command can press the buttons.
+        """
+        Makes sure only the user who ran the command can press the buttons.
         If someone else tries to click, they get a silent rejection.
         """
         if str(interaction.user.id) != self.user_id:
@@ -84,7 +87,8 @@ class DeleteConfirmView(discord.ui.View):
         self.stop()
 
     async def on_timeout(self):
-        """Fires if the user doesn't click anything within 30 seconds.
+        """
+        Fires if the user doesn't click anything within 30 seconds.
         Disables the buttons so they can't be clicked after the timeout.
         """
         for item in self.children:
@@ -117,12 +121,12 @@ class LogCommands(app_commands.Group):
     )
     # show a dropdown menu for the period argument
     @app_commands.choices(category=[
-        app_commands.Choice(name="Eat out & Takeaway",   value="Eat out & Takeaway"),
-        app_commands.Choice(name="Entertainment",  value="Entertainment"),
-        app_commands.Choice(name="Grocery",  value="Grocery"),
-        app_commands.Choice(name="Snack",  value="Snack"),
-        app_commands.Choice(name="Utils & Bills",  value="Utils & Bills"),
-        app_commands.Choice(name="Other",  value="Other"),
+        app_commands.Choice(name="Eat out & Takeaway",  value="Eat out & Takeaway"),
+        app_commands.Choice(name="Entertainment",       value="Entertainment"),
+        app_commands.Choice(name="Grocery",             value="Grocery"),
+        app_commands.Choice(name="Snack",               value="Snack"),
+        app_commands.Choice(name="Utils & Bills",       value="Utils & Bills"),
+        app_commands.Choice(name="Other",               value="Other"),
     ])
     async def spend(
         self,
@@ -131,11 +135,11 @@ class LogCommands(app_commands.Group):
         category: app_commands.Choice[str],
         note: str = None
     ):
-        # Basic validation — amount must be positive
-        if amount <= 0:
+        # Basic validation - amount must be positive
+        msg = validate_amount(amount)
+        if msg:
             await interaction.response.send_message(
-                "❌ Amount must be greater than zero.",
-                ephemeral=False
+                msg, ephemeral=False
             )
             return
         
@@ -164,10 +168,10 @@ class LogCommands(app_commands.Group):
                            limit: int = database.RECENT_ENTRY_EDIT_LIMIT):
         
         # Cap the limit so no one requests 1000 entries (or the entire databse)
-        if limit < 1 or limit > database.HARD_ENTRY_EDIT_LIMIT:
+        msg = validate_entry_query_limit(limit)
+        if msg:
             await interaction.response.send_message(
-                "❌ Limit must be between 1 and 25.",
-                ephemeral=False
+                msg, ephemeral=False
             )
             return
         
@@ -219,18 +223,17 @@ class LogCommands(app_commands.Group):
         note: str = None
     ):
         # Make sure the user provided at least one field to change
-        if amount is None and category is None and note is None:
+        msg = validate_edit(amount, category, note)
+        if msg:
             await interaction.response.send_message(
-                "❌ Please provide at least one field to update "
-                "(amount, category, or note).",
-                ephemeral=False
+                msg, ephemeral=False
             )
             return
-        
-        if amount is not None and amount <= 0:
+
+        msg = validate_amount(amount)
+        if msg:
             await interaction.response.send_message(
-                "❌ Amount must be greater than zero.",
-                ephemeral=False
+                msg, ephemeral=False
             )
             return
         
