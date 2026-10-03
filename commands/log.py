@@ -178,7 +178,7 @@ class LogCommands(app_commands.Group):
         user_id = str(interaction.user.id)
         guild_id = str(interaction.guild.id)
 
-        entries = await database.get_recent_entries(user_id, guild_id, limit)
+        entries = await database.get_recent_entries(user_id, limit)
         if not entries:
             await interaction.response.send_message(
                 "You have no logged entries yet. Use `/log spend` to add one.",

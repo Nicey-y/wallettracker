@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 import database
+from utils.validate import *
 
 # The valid period choices the user can pick from.
 # Using a fixed list prevents users from entering arbitrary strings like
@@ -37,11 +38,10 @@ class BudgetCommands(app_commands.Group):
         amount: float,
         period: app_commands.Choice[str]
     ):
-        # Validate amount
-        if amount <= 0:
+        msg = validate_amount(amount)
+        if msg:
             await interaction.response.send_message(
-                "❌ Budget must be greater than zero.",
-                ephemeral=False
+                msg, ephemeral=False
             )
             return
         

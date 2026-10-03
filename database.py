@@ -64,7 +64,8 @@ async def add_entry(user_id: str,
                     guild_id: str,
                     amount: float,
                     category: str,
-                    note: str = None):
+                    note: str = None,
+                    db_path: str = DB_PATH):
     """ Inserts a new spending entry into the database.
 
     Args:
@@ -75,7 +76,7 @@ async def add_entry(user_id: str,
         note (str, optional): optional extra description. Defaults to None.
     """
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         await db.execute(
             """ 
             INSERT INTO entries (user_id, guild_id, amount, category, note)
@@ -87,8 +88,8 @@ async def add_entry(user_id: str,
         await db.commit()
 
 async def get_recent_entries(user_id: str,
-                             guild_id: str,
-                             limit: int = RECENT_ENTRY_EDIT_LIMIT):
+                             limit: int = RECENT_ENTRY_EDIT_LIMIT,
+                             db_path: str = DB_PATH):
     """Fetches the most recent entries for a user in a server.
 
     Args:
@@ -96,16 +97,16 @@ async def get_recent_entries(user_id: str,
         guild_id (str): _description_
         limit (int, optional): how many entries to return. Defaults to 10.
     """
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """ 
             SELECT id, amount, category, note, timestamp
             FROM entries
-            WHERE user_id = ? AND guild_id = ?
+            WHERE user_id = ?
             ORDER BY timestamp DESC
             LIMIT ?
             """,
-            (user_id, guild_id, limit)
+            (user_id, limit)
         ) as cursor:
             return await cursor.fetchall()
         
@@ -114,11 +115,12 @@ async def edit_entry(entry_id: int,
                      guild_id: str,
                      amount: float = None,
                      category: str = None,
-                     note: str = None):
+                     note: str = None,
+                     db_path: str = DB_PATH):
     """Edits an existing entry. Only updates fields that are provided.
 
     The user_id and guild_id checks ensure a user can only edit their own
-    entries within their server — not someone else's.
+    entries within their server and not someone else's.
 
     Args:
         entry_id (int):             the ID of the entry to edit.
@@ -155,7 +157,7 @@ async def edit_entry(entry_id: int,
     # Add the WHERE clause values
     values.extend([entry_id, user_id, guild_id])
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         cursor = await db.execute(
             f""" 
             UPDATE entries
@@ -174,7 +176,8 @@ async def edit_entry(entry_id: int,
 # before we actually remove it    
 async def get_entry_by_id(entry_id: int,
                           user_id: str,
-                          guild_id: str):
+                          guild_id: str,
+                          db_path: str = DB_PATH):
     """Fetches a single entry by ID, only if it belongs to this user in this server.
     Returns (id, amount, category, note, timestamp) or None if not found.
 
@@ -184,7 +187,7 @@ async def get_entry_by_id(entry_id: int,
         guild_id (str): _description_
     """
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """ 
             SELECT id, amount, category, note, timestamp
@@ -197,7 +200,8 @@ async def get_entry_by_id(entry_id: int,
         
 async def delete_entry(entry_id: str,
                        user_id: str,
-                       guild_id: str):
+                       guild_id: str,
+                       db_path: str = DB_PATH):
     """Deletes an entry by ID. Only deletes if it belongs to this user in this server.
     Return True if a row was deleted, False if no matching entry was found.
 
@@ -207,7 +211,7 @@ async def delete_entry(entry_id: str,
         guild_id (str): _description_
     """
     
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         cursor = await db.execute(
             """ 
             DELETE FROM entries
@@ -221,7 +225,8 @@ async def delete_entry(entry_id: str,
 async def set_budget(user_id: str,
                      guild_id: str,
                      amount: float,
-                     period: str):
+                     period: str,
+                     db_path: str = DB_PATH):
     """ Saves a user's budget. Overwrites if one already exists for this user in this server.
 
     Args:
@@ -230,7 +235,7 @@ async def set_budget(user_id: str,
         amount (float): the budget amount (e.g. 100.00)
         period (str): how often the budget resets (e.g. 'weekly', 'monthly')
     """
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         await db.execute(
             """
             INSERT INTO budgets (user_id, guild_id, budget_amount, budget_period)
@@ -245,13 +250,16 @@ async def set_budget(user_id: str,
             # (which is the primary key we defined), update it instead of throwing an error
         await db.commit()
 
-async def set_opted_in(user_id: str, guild_id: str, opted_in: bool):
+async def set_opted_in(user_id: str, 
+                       guild_id: str, 
+                       opted_in: bool,
+                       db_path: str = DB_PATH):
     """Sets the opted_in flag for a user's budget.
     
     Args:
         opted_in: True to opt in, False to opt out.
     """
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         await db.execute(
             """
             UPDATE budgets
@@ -263,9 +271,11 @@ async def set_opted_in(user_id: str, guild_id: str, opted_in: bool):
         await db.commit()
 
 
-async def get_opted_in(user_id: str, guild_id: str) -> bool:
+async def get_opted_in(user_id: str, 
+                       guild_id: str,
+                       db_path: str = DB_PATH) -> bool:
     """Returns True if the user is opted in to automatic summaries, False otherwise."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """
             SELECT opted_in FROM budgets
@@ -277,7 +287,9 @@ async def get_opted_in(user_id: str, guild_id: str) -> bool:
             # If no budget row exists at all, treat as opted out
             return bool(row[0]) if row else False
 
-async def get_budget(user_id: str, guild_id: str):
+async def get_budget(user_id: str, 
+                     guild_id: str,
+                     db_path: str = DB_PATH):
     """ Fetches the budget for a user in a server.
     Returns a row (budget_amount, budget_period) or None if no budget is set.
 
@@ -286,7 +298,7 @@ async def get_budget(user_id: str, guild_id: str):
         guild_id (str): _description_
     """
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """
             SELECT budget_amount, budget_period
@@ -301,7 +313,8 @@ async def get_budget(user_id: str, guild_id: str):
 
 async def get_entries(user_id: str,
                       guild_id: str,
-                      since: str):
+                      since: str,
+                      db_path: str = DB_PATH):
     """ Fetches all spending entries for a user since a given timestamp.
 
     Args:
@@ -312,7 +325,7 @@ async def get_entries(user_id: str,
     Returns a list of rows, each row being (amount, category, note, timestamp).
     """
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """
             SELECT amount, category, note, timestamp
@@ -327,11 +340,11 @@ async def get_entries(user_id: str,
             # [(12.50, 'coffee', None, '2024-01-03 09:00:00'),
             #  (8.00, 'transport', 'bus', '2024-01-02 08:30:00')]
 
-async def get_all_budgets():
+async def get_all_budgets(db_path: str = DB_PATH):
     """Fetches every budget row across all users and servers.
     Returns a list of (user_id, guild_id, budget_amount, budget_period, opted_in).
     """
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """
             SELECT user_id, guild_id, budget_amount, budget_period, opted_in
@@ -340,7 +353,9 @@ async def get_all_budgets():
         ) as cursor:
             return await cursor.fetchall()
         
-async def set_summary_channel(guild_id: str, channel_id: str):
+async def set_summary_channel(guild_id: str, 
+                              channel_id: str,
+                              db_path: str = DB_PATH):
     """ Saves the channel where automatic summaries should be posted for a server.
 
     Args:
@@ -348,7 +363,7 @@ async def set_summary_channel(guild_id: str, channel_id: str):
         channel_id (str): _description_
     """
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         await db.execute(
             """ 
             INSERT INTO summary_channels (guild_id, channel_id)
@@ -360,7 +375,8 @@ async def set_summary_channel(guild_id: str, channel_id: str):
         )
         await db.commit()
 
-async def get_summary_channel(guild_id: str):
+async def get_summary_channel(guild_id: str,
+                              db_path: str = DB_PATH):
     """ Fetches the summary channel ID for a server.
     Returns the channel_id string, or None of not set.
 
@@ -369,7 +385,7 @@ async def get_summary_channel(guild_id: str):
     """
     # print("--- from get_summary_channel")
     # print(guild_id)
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """ 
             SELECT channel_id FROM summary_channels
@@ -380,14 +396,16 @@ async def get_summary_channel(guild_id: str):
             row = await cursor.fetchone()
             return row[0] if row else None
         
-async def set_user_timezone(user_id: str, tz: str):
+async def set_user_timezone(user_id: str, 
+                            tz: str,
+                            db_path: str = DB_PATH):
     """Saves a user's preferred timezone.
     
     Args:
         user_id: The Discord ID of the user.
         tz:      A valid timezone string e.g. 'Australia/Melbourne'.
     """
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         await db.execute(
             """
             INSERT INTO user_timezones (user_id, timezone)
@@ -399,7 +417,8 @@ async def set_user_timezone(user_id: str, tz: str):
         )
         await db.commit()
 
-async def get_user_timezone(user_id: str) -> str:
+async def get_user_timezone(user_id: str,
+                            db_path: str = DB_PATH) -> str:
     """Fetches a user's timezone. Return 'UTC' if not set.
 
     Args:
@@ -409,7 +428,7 @@ async def get_user_timezone(user_id: str) -> str:
         str: _description_
     """
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with aiosqlite.connect(db_path) as db:
         async with db.execute(
             """
             SELECT timezone
