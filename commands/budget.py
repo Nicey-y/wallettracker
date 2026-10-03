@@ -70,7 +70,7 @@ class BudgetCommands(app_commands.Group):
         channel: discord.TextChannel # show a channel picker in the slash command UI
                                      # user clicks a channel from a dropdown rather than typing a name
     ):
-        await database.set_summary_channel(
+        await database.set_summary_channel_for_budget(
             guild_id=str(interaction.guild.id),
             channel_id=str(channel.id)
         )

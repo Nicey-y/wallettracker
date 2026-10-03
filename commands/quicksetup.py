@@ -98,7 +98,7 @@ class QuickSetupModal(discord.ui.Modal,
         guild_id = str(interaction.guild.id)
 
         await database.set_budget(user_id, guild_id, amount, period)
-        await database.set_summary_channel(guild_id, str(channel.id))
+        await database.set_summary_channel_for_budget(guild_id, str(channel.id))
         await database.set_user_timezone(user_id, tz)
 
         # Confirm back to the user with a summary of what was set

@@ -90,7 +90,7 @@ async def send_scheduled_summaries():
     print(f"[Scheduler] Hourly check running at {datetime.now(timezone.utc).strftime('%H:%M UTC')}...")
 
     try:
-        all_budgets = await database.get_all_budgets()
+        all_budgets = await database.get_all_opted_in_budgets()
         # row indices: 0=user_id, 1=guild_id, 2=budget_amount, 3=budget_period, 4=opted_in
         relevant = [row for row in all_budgets if row[3] == budget_period and row[4] == 1]
 
