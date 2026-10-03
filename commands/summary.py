@@ -58,7 +58,7 @@ class SummaryCommands(app_commands.Group):
         guild_id = str(interaction.guild.id)
 
         # Fetch user's budget
-        budget_row = await database.get_budget(user_id, guild_id)
+        budget_row = await database.get_budget_for_period(user_id, guild_id)
 
         if budget_row is None:
             await interaction.response.send_message(
@@ -181,7 +181,7 @@ class SummaryCommands(app_commands.Group):
         guild_id = str(interaction.guild.id)
 
         # Check they actually have a budget set
-        budget_row = await database.get_budget(user_id, guild_id)
+        budget_row = await database.get_budget_for_period(user_id, guild_id)
         if budget_row is None:
             await interaction.response.send_message(
                 "❌ You don't have a budget set up yet. Run `/quicksetup start` first.",
@@ -190,7 +190,7 @@ class SummaryCommands(app_commands.Group):
             return
 
         # Check if they're already opted out
-        if not await database.get_opted_in(user_id, guild_id):
+        if not await database.get_opted_in_for_period(user_id, guild_id):
             await interaction.response.send_message(
                 "You're already opted out of automatic summaries. "
                 "Run `/summary optin` to opt back in.",
@@ -198,7 +198,7 @@ class SummaryCommands(app_commands.Group):
             )
             return
 
-        await database.set_opted_in(user_id, guild_id, False)
+        await database.set_opted_in_for_period(user_id, guild_id, False)
 
         await interaction.response.send_message(
             "✅ You've opted out of automatic summaries.\n"
@@ -214,7 +214,7 @@ class SummaryCommands(app_commands.Group):
         guild_id = str(interaction.guild.id)
 
         # Check they actually have a budget set
-        budget_row = await database.get_budget(user_id, guild_id)
+        budget_row = await database.get_budget_for_period(user_id, guild_id)
         if budget_row is None:
             await interaction.response.send_message(
                 "❌ You don't have a budget set up yet. Run `/quicksetup start` first.",
@@ -223,7 +223,7 @@ class SummaryCommands(app_commands.Group):
             return
 
         # Check if they're already opted in
-        if await database.get_opted_in(user_id, guild_id):
+        if await database.get_opted_in_for_period(user_id, guild_id):
             await interaction.response.send_message(
                 "You're already opted in to automatic summaries. "
                 "Run `/summary optout` to opt out.",
@@ -231,7 +231,7 @@ class SummaryCommands(app_commands.Group):
             )
             return
 
-        await database.set_opted_in(user_id, guild_id, True)
+        await database.set_opted_in_for_period(user_id, guild_id, True)
 
         # Fetch their budget details to show in the confirmation
         budget_amount, budget_period = budget_row

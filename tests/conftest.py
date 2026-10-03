@@ -19,9 +19,8 @@ async def db():
 
     await db.execute("""
         CREATE TABLE IF NOT EXISTS entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     TEXT NOT NULL,
-            guild_id    TEXT NOT NULL,
             amount      REAL NOT NULL,
             category    TEXT,
             note        TEXT,
@@ -31,30 +30,32 @@ async def db():
 
     await db.execute("""
         CREATE TABLE IF NOT EXISTS budgets (
-            guild_id       TEXT NOT NULL,
             user_id        TEXT NOT NULL,
             budget_amount  REAL NOT NULL,
             budget_period  TEXT NOT NULL DEFAULT 'weekly',
-            opted_in       INTEGER NOT NULL DEFAULT 1,
-            PRIMARY KEY (guild_id, user_id)
+            PRIMARY KEY (budget_period, user_id)
         )
     """)
 
+    # Each user can have only one summary channel across all servers
     await db.execute("""
         CREATE TABLE IF NOT EXISTS summary_channels (
-            guild_id    TEXT PRIMARY KEY,
-            channel_id  TEXT NOT NULL
+            guild_id        TEXT PRIMARY KEY,
+            channel_id      TEXT NOT NULL,
+            user_id         TEXT NOT NULL,
+            budget_period   TEXT NOT NULL DEFAULT 'weekly',
+            opted_in        INTEGER NOT NULL DEFAULT 1,
         )
     """)
     print("summary_channels table done.")
 
     await db.execute(""" 
-        CREATE TABLE IF NOT EXISTS user_timezones (
+        CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
             timezone TEXT NOT NULL DEFAULT 'UTC'
         )
     """)
-    print("user_timezones table done.")
+    print("users table done.")
 
     await db.commit()
     print("Committed.")
