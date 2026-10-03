@@ -29,7 +29,6 @@ async def init_db():
                 user_id        TEXT NOT NULL,
                 budget_amount  REAL NOT NULL,
                 budget_period  TEXT NOT NULL DEFAULT 'weekly',
-                opted_in       INTEGER NOT NULL DEFAULT 1,
                 PRIMARY KEY (budget_period, user_id)
             )
         """)
@@ -39,9 +38,11 @@ async def init_db():
         # each user can have one summary channel per server
         await db.execute("""
             CREATE TABLE IF NOT EXISTS summary_channels (
-                guild_id    TEXT PRIMARY KEY,
-                channel_id  TEXT NOT NULL,
-                user_id     TEXT NOT NULL
+                guild_id        TEXT PRIMARY KEY,
+                channel_id      TEXT NOT NULL,
+                user_id         TEXT NOT NULL,
+                budget_period   TEXT NOT NULL DEFAULT 'weekly',
+                opted_in        INTEGER NOT NULL DEFAULT 1,
             )
         """)
         print("summary_channels table done.")
