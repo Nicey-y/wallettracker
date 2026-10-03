@@ -40,7 +40,7 @@ def validate_edit(amount: float | None,
         return None
 
 def validate_entry_query_limit(limit: int) -> str | None:
-    """Keep the amount of entry queried between 1 and 25
+    """Keep the amount of entry queried between 1 and 10
 
     Args:
         limit (int): _description_
@@ -48,8 +48,8 @@ def validate_entry_query_limit(limit: int) -> str | None:
     Returns:
         str | None: _description_
     """
-    if limit < 1 or limit > database.HARD_ENTRY_EDIT_LIMIT:
-        return "❌ Limit must be between 1 and 25."
+    if limit < 1 or limit > database.RECENT_ENTRY_EDIT_LIMIT:
+        return "❌ Limit must be between 1 and 10."
     else:
         return None
 

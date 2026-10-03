@@ -1,8 +1,6 @@
 import aiosqlite
 
 RECENT_ENTRY_EDIT_LIMIT = 10
-HARD_ENTRY_EDIT_LIMIT = 25
-
 DB_PATH = "wallettracker.db"
 
 async def init_db():
@@ -18,7 +16,6 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS entries (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id     TEXT NOT NULL,
-                guild_id    TEXT NOT NULL,
                 amount      REAL NOT NULL,
                 category    TEXT,
                 note        TEXT,
@@ -29,28 +26,28 @@ async def init_db():
         # Create a table named `budgets` that stores user-customised budgets
         await db.execute("""
             CREATE TABLE IF NOT EXISTS budgets (
-                guild_id       TEXT NOT NULL,
                 user_id        TEXT NOT NULL,
                 budget_amount  REAL NOT NULL,
                 budget_period  TEXT NOT NULL DEFAULT 'weekly',
                 opted_in       INTEGER NOT NULL DEFAULT 1,
-                PRIMARY KEY (guild_id, user_id)
+                PRIMARY KEY (budget_period, user_id)
             )
         """)
 
         # Create a `summary_channels` table so that the bot knows
         # which channel in the server it should send the summary message in
+        # each user can have one summary channel per server
         await db.execute("""
             CREATE TABLE IF NOT EXISTS summary_channels (
                 guild_id    TEXT PRIMARY KEY,
-                channel_id  TEXT NOT NULL
+                channel_id  TEXT NOT NULL,
+                user_id     TEXT NOT NULL
             )
         """)
         print("summary_channels table done.")
 
-        # Create a `user_timezones` table to store a user' timezone
         await db.execute(""" 
-            CREATE TABLE IF NOT EXISTS user_timezones (
+            CREATE TABLE IF NOT EXISTS users (
                 user_id TEXT PRIMARY KEY,
                 timezone TEXT NOT NULL DEFAULT 'UTC'
             )
@@ -112,7 +109,6 @@ async def get_recent_entries(user_id: str,
         
 async def edit_entry(entry_id: int,
                      user_id: str,
-                     guild_id: str,
                      amount: float = None,
                      category: str = None,
                      note: str = None,
@@ -125,7 +121,6 @@ async def edit_entry(entry_id: int,
     Args:
         entry_id (int):             the ID of the entry to edit.
         user_id (str):              must match the entry's owner.
-        guild_id (str):             must match the entry's server.
         amount (float, optional):   new amount, or None to leave unchanged.
         category (str, optional):   new category, or None to leave unchanged.
         note (str, optional):       new note, or None to leave unchanged.
@@ -155,14 +150,14 @@ async def edit_entry(entry_id: int,
         return False
     
     # Add the WHERE clause values
-    values.extend([entry_id, user_id, guild_id])
+    values.extend([entry_id, user_id])
 
     async with aiosqlite.connect(db_path) as db:
         cursor = await db.execute(
             f""" 
             UPDATE entries
             SET {', '.join(fields)}
-            WHERE id = ? AND user_id = ? AND guild_id = ?
+            WHERE id = ? AND user_id = ?
             """,
             values
         )
@@ -176,7 +171,6 @@ async def edit_entry(entry_id: int,
 # before we actually remove it    
 async def get_entry_by_id(entry_id: int,
                           user_id: str,
-                          guild_id: str,
                           db_path: str = DB_PATH):
     """Fetches a single entry by ID, only if it belongs to this user in this server.
     Returns (id, amount, category, note, timestamp) or None if not found.
@@ -184,7 +178,6 @@ async def get_entry_by_id(entry_id: int,
     Args:
         entry_id (int): _description_
         user_id (str): _description_
-        guild_id (str): _description_
     """
 
     async with aiosqlite.connect(db_path) as db:
@@ -192,15 +185,14 @@ async def get_entry_by_id(entry_id: int,
             """ 
             SELECT id, amount, category, note, timestamp
             FROM entries
-            WHERE id = ? AND user_id = ? AND guild_id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (entry_id, user_id, guild_id)
+            (entry_id, user_id)
         ) as cursor:
             return await cursor.fetchone()
         
 async def delete_entry(entry_id: str,
                        user_id: str,
-                       guild_id: str,
                        db_path: str = DB_PATH):
     """Deletes an entry by ID. Only deletes if it belongs to this user in this server.
     Return True if a row was deleted, False if no matching entry was found.
@@ -208,22 +200,20 @@ async def delete_entry(entry_id: str,
     Args:
         entry_id (str): _description_
         user_id (str): _description_
-        guild_id (str): _description_
     """
     
     async with aiosqlite.connect(db_path) as db:
         cursor = await db.execute(
             """ 
             DELETE FROM entries
-            WHERE id = ? AND user_id = ? AND guild_id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (entry_id, user_id, guild_id)
+            (entry_id, user_id)
         )
         await db.commit()
         return cursor.rowcount > 0
 
 async def set_budget(user_id: str,
-                     guild_id: str,
                      amount: float,
                      period: str,
                      db_path: str = DB_PATH):
@@ -231,20 +221,19 @@ async def set_budget(user_id: str,
 
     Args:
         user_id (str): the Discord ID of the user logging the spend
-        guild_id (str): the Discord ID of the server it was logged in.
         amount (float): the budget amount (e.g. 100.00)
         period (str): how often the budget resets (e.g. 'weekly', 'monthly')
     """
     async with aiosqlite.connect(db_path) as db:
         await db.execute(
             """
-            INSERT INTO budgets (user_id, guild_id, budget_amount, budget_period)
+            INSERT INTO budgets (user_id, budget_amount, budget_period)
             VALUES (?, ?, ?, ?)
-            ON CONFLICT (guild_id, user_id) DO UPDATE SET
+            ON CONFLICT (user_id) DO UPDATE SET
                 budget_amount = excluded.budget_amount,
                 budget_period = excluded.budget_period
             """,
-            (user_id, guild_id, amount, period)
+            (user_id, amount, period)
         )   # 'ON CONFLICT ... DO UPDATE': upsert -  try to insert a new row, 
             # but if a row with the same guild_id and user_id already exists 
             # (which is the primary key we defined), update it instead of throwing an error
