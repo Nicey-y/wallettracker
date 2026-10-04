@@ -21,14 +21,14 @@ class TestBudget:
 
         # Weekly
         await set_budget('user1', 40.00, 'weekly', conn=db)
-        budget = await get_budget_for_user_period(db, 'user1', 'weekly', conn=db)
+        budget = await get_budget_for_user_period('user1', 'weekly', conn=db)
         assert budget
         assert budget[0] == 40.00
         assert budget[1] == 'weekly'
 
         # Monthly
         await set_budget('user1', 160.00, 'monthly', conn=db)
-        budget = await get_budget_for_user_period(db, 'user1', 'monthly', conn=db)
+        budget = await get_budget_for_user_period('user1', 'monthly', conn=db)
         assert budget
         assert budget[0] == 160.00
         assert budget[1] == 'monthly'

@@ -1,6 +1,6 @@
+import aiosqlite
 import pytest
 import pytest_asyncio
-from helpers import *
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.validate import *
@@ -11,6 +11,18 @@ from database import add_entry, get_recent_entries_by_user, RECENT_ENTRY_EDIT_LI
 pytest_asyncio_mode = "auto"
 # pytest tests/test_02_entry.py -v
 
+async def add_1_entry_return_id(conn: aiosqlite.Connection) -> int: 
+    """Add one entry by 'user1' to the database and return the entry ID
+
+    Args:
+        conn (aiosqlite.Connection): _description_
+
+    Returns:
+        int: _description_
+    """
+    await add_entry('user1', 20.00, 'Grocery', conn=conn)
+    entry = await get_recent_entries_by_user('user1', 1, conn=conn)
+    return entry[0][0]
 class TestAddEntry:
     # pytest tests/test_02_add_entry.py::TestAddEntry::test_add_single_entry -v
     async def test_add_single_entry(self, db):
@@ -108,6 +120,7 @@ class TestAddEntry:
         assert len(entries) == 0
 
 class TestEditEntry:
+    # pytest tests/test_02_entry.py::TestEditEntry::test_edit_single_field -v
     async def test_edit_single_field(self, db):
         entry_id = await add_1_entry_return_id(db)
 

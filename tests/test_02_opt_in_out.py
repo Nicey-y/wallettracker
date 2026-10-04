@@ -1,7 +1,6 @@
 import pytest
 import sqlite3
 import pytest_asyncio
-from helpers import *
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.validate import *
@@ -12,6 +11,7 @@ pytest_asyncio_mode = "auto"
 # pytest tests/test_02_opt_in_out.py -v
 
 class TestOptInOut:
+    # pytest tests/test_02_opt_in_out.py::TestOptInOut::test_default_opt_in -v
     async def test_default_opt_in(self, db):
         await set_budget('user1', 20.00, 'daily', conn=db)
         await set_summary_channel_for_budget('guild1', 'channel1', 'user1', 'daily', conn=db)

@@ -317,7 +317,7 @@ async def set_summary_channel_for_budget(guild_id: str,
     if conn is None:
         conn = await get_conn()
     try:
-        assert await get_budget_for_user_period(user_id, budget_period)
+        assert await get_budget_for_user_period(user_id, budget_period, conn=conn)
     except Exception as e:
         raise Exception(f"Cannot set channel for a non-existent budget: {e}")
 

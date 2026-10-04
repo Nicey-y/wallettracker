@@ -72,4 +72,4 @@ async def db():
 async def seed_15_entries_same_user(db):
     categories = ['Eat out & Takeaway', 'Entertainment', 'Grocery', 'Snack', 'Utils & Bills', 'Other']
     for i in range(1, 17):
-        await database.add_entry(db, 'user1', float(i), categories[i%6], None)    
+        await database.add_entry('user1', float(i), categories[i%6], None, db)    
