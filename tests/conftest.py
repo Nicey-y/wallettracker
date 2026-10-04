@@ -24,8 +24,8 @@ async def db():
         CREATE TABLE IF NOT EXISTS entries (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     TEXT NOT NULL,
-            amount      REAL NOT NULL,
-            category    TEXT,
+            amount      REAL NOT NULL CHECK (amount > 0),
+            category    TEXT NOT NULL CHECK (category IN ('Eat out & Takeaway', 'Entertainment', 'Grocery', 'Snack', 'Utils & Bills', 'Other')),
             note        TEXT,
             timestamp   TEXT DEFAULT (datetime('now'))
         )
@@ -34,8 +34,8 @@ async def db():
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS budgets (
             user_id        TEXT NOT NULL,
-            budget_amount  REAL NOT NULL,
-            budget_period  TEXT NOT NULL DEFAULT 'weekly',
+            budget_amount  REAL NOT NULL CHECK (budget_amount > 0),
+            budget_period  TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
             PRIMARY KEY (budget_period, user_id)
         )
     """)
@@ -46,7 +46,7 @@ async def db():
             guild_id        TEXT PRIMARY KEY,
             channel_id      TEXT NOT NULL,
             user_id         TEXT NOT NULL,
-            budget_period   TEXT NOT NULL DEFAULT 'weekly',
+            budget_period  TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
             opted_in        INTEGER NOT NULL DEFAULT 1
         )
     """)

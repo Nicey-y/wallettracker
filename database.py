@@ -16,8 +16,8 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS entries (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id     TEXT NOT NULL,
-                amount      REAL NOT NULL,
-                category    TEXT,
+                amount      REAL NOT NULL CHECK (amount > 0),
+                category    TEXT NOT NULL CHECK (category IN ('Eat out & Takeaway', 'Entertainment', 'Grocery', 'Snack', 'Utils & Bills', 'Other')),
                 note        TEXT,
                 timestamp   TEXT DEFAULT (datetime('now'))
             )
@@ -27,8 +27,8 @@ async def init_db():
         await db.execute("""
             CREATE TABLE IF NOT EXISTS budgets (
                 user_id        TEXT NOT NULL,
-                budget_amount  REAL NOT NULL,
-                budget_period  TEXT NOT NULL DEFAULT 'weekly',
+                budget_amount  REAL NOT NULL CHECK (budget_amount > 0),
+                budget_period  TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
                 PRIMARY KEY (budget_period, user_id)
             )
         """)
@@ -41,7 +41,7 @@ async def init_db():
                 guild_id        TEXT PRIMARY KEY,
                 channel_id      TEXT NOT NULL,
                 user_id         TEXT NOT NULL,
-                budget_period   TEXT NOT NULL DEFAULT 'weekly',
+                budget_period   TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
                 opted_in        INTEGER NOT NULL DEFAULT 1,
             )
         """)
@@ -210,24 +210,50 @@ async def set_budget(conn: aiosqlite.Connection,
                      amount: float,
                      period: str):
     """ Saves a user's budget. Overwrites if one already exists for this user.
+    Error raised for invalid amount or period.
 
     Args:
         user_id (str): the Discord ID of the user logging the spend
         amount (float): the budget amount (e.g. 100.00)
         period (str): how often the budget resets (e.g. 'weekly', 'monthly')
     """
-    await conn.execute(
-        """
-        INSERT INTO budgets (user_id, budget_amount, budget_period)
-        VALUES (?, ?, ?)
-        ON CONFLICT (budget_period, user_id) DO UPDATE SET
-            budget_amount = excluded.budget_amount
-        """,
-        (user_id, amount, period)
-    )   # 'ON CONFLICT ... DO UPDATE': upsert - try to insert a new row, 
-        # but if a row with the same budget_period and user_id already exists 
-        # (which is the primary key we defined), update it instead of throwing an error
+    try:
+        await conn.execute(
+            """
+            INSERT INTO budgets (user_id, budget_amount, budget_period)
+            VALUES (?, ?, ?)
+            ON CONFLICT (budget_period, user_id) DO UPDATE SET
+                budget_amount = excluded.budget_amount
+            """,
+            (user_id, amount, period)
+        )   # 'ON CONFLICT ... DO UPDATE': upsert - try to insert a new row, 
+            # but if a row with the same budget_period and user_id already exists 
+            # (which is the primary key we defined), update it instead of throwing an error
+    except Exception as e:
+        raise Exception(f"Error setting budget: {e}")
     await conn.commit()
+
+async def get_budget_for_period(conn: aiosqlite.Connection,
+                                user_id: str, 
+                                budget_period: str):
+    """ Fetches the budget of a period for a user.
+    Returns a row (budget_amount, budget_period) or None if no budget is set.
+
+    Args:
+        user_id (str): _description_
+    """
+    try:
+        async with conn.execute(
+            """
+            SELECT budget_amount, budget_period
+            FROM budgets
+            WHERE user_id = ? AND budget_period = ?
+            """,
+            (user_id, budget_period)
+        ) as cursor:
+            return await cursor.fetchone()
+    except Exception as e:
+        raise Exception(f"Error getting budget for period: {e}")
 
 async def set_opted_in_for_period(conn: aiosqlite.Connection,
                                   user_id: str,
@@ -249,7 +275,6 @@ async def set_opted_in_for_period(conn: aiosqlite.Connection,
     )
     await conn.commit()
 
-
 async def get_opted_in_for_period(conn: aiosqlite.Connection,
                                   user_id: str, 
                                 guild_id: str,
@@ -266,25 +291,6 @@ async def get_opted_in_for_period(conn: aiosqlite.Connection,
         row = await cursor.fetchone()
         # If no budget row exists at all, treat as opted out
         return bool(row[0]) if row else False
-
-async def get_budget_for_period(conn: aiosqlite.Connection,
-                                user_id: str, 
-                                budget_period: str):
-    """ Fetches the budget of a period for a user.
-    Returns a row (budget_amount, budget_period) or None if no budget is set.
-
-    Args:
-        user_id (str): _description_
-    """
-    async with conn.execute(
-        """
-        SELECT budget_amount
-        FROM budgets
-        WHERE user_id = ? AND budget_period = ?
-        """,
-        (user_id, budget_period)
-    ) as cursor:
-        return await cursor.fetchone()
 
 async def get_entries_for_user_since(conn: aiosqlite.Connection,
                                      user_id: str,
