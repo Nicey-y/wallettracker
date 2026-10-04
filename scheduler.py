@@ -3,6 +3,7 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime, timedelta, timezone
 import discord
 import database
+import aiosqlite
 import pytz
 import asyncio
 
@@ -90,14 +91,16 @@ async def send_scheduled_summaries():
     print(f"[Scheduler] Hourly check running at {datetime.now(timezone.utc).strftime('%H:%M UTC')}...")
 
     try:
-        all_budgets = await database.get_all_opted_in_budgets()
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            all_budgets = await database.get_all_opted_in_budgets(conn)
         # row indices: 0=user_id, 1=guild_id, 2=budget_amount, 3=budget_period, 4=opted_in
         relevant = [row for row in all_budgets if row[3] == budget_period and row[4] == 1]
 
         for user_id, guild_id, budget_amount, budget_period, _ in relevant:
 
             # Get user's timezone
-            user_tz = await database.get_user_timezone(user_id)
+            async with aiosqlite.connect(database.DB_PATH) as conn:
+                user_tz = await database.get_user_timezone(conn, user_id)
 
             # Check if a summary is due for this user right now
             if not is_summary_due(budget_period, user_tz):
@@ -106,7 +109,8 @@ async def send_scheduled_summaries():
             print(f"[Scheduler] Summary due for user {user_id} ({budget_period}, {user_tz})")
 
             # Get the channel to post in
-            channel_id = await database.get_summary_channel(guild_id)
+            async with aiosqlite.connect(database.DB_PATH) as conn:
+                channel_id = await database.get_summary_channel(conn, user_id, budget_period)
             if not channel_id:
                 print(f"[Scheduler] No summary channel for guild {guild_id}, skipping.")
                 continue
@@ -118,7 +122,9 @@ async def send_scheduled_summaries():
 
             # Fetch entries for this period
             period_start = get_period_start(budget_period)
-            entries      = await database.get_entries_for_user_since(user_id, guild_id, period_start)
+            
+            async with aiosqlite.connect(database.DB_PATH) as conn:
+                entries = await database.get_entries_for_user_since(conn, user_id, period_start)
 
             total_spent = sum(row[0] for row in entries)
             remaining   = budget_amount - total_spent
