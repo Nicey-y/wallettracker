@@ -43,11 +43,12 @@ async def db():
     # Each user can have only one summary channel across all servers
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS summary_channels (
-            guild_id        TEXT PRIMARY KEY,
+            guild_id        TEXT NOT NULL,
             channel_id      TEXT NOT NULL,
             user_id         TEXT NOT NULL,
             budget_period  TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
-            opted_in        INTEGER NOT NULL DEFAULT 1
+            opted_in        INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (budget_period, user_id)
         )
     """)
     print("summary_channels table done.")

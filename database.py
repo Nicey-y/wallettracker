@@ -38,11 +38,12 @@ async def init_db():
         # each user can have one summary channel per server
         await db.execute("""
             CREATE TABLE IF NOT EXISTS summary_channels (
-                guild_id        TEXT PRIMARY KEY,
+                guild_id        TEXT NOT NULL,
                 channel_id      TEXT NOT NULL,
                 user_id         TEXT NOT NULL,
                 budget_period   TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
                 opted_in        INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (budget_period, user_id)
             )
         """)
         print("summary_channels table done.")
@@ -255,42 +256,60 @@ async def get_budget_for_period(conn: aiosqlite.Connection,
     except Exception as e:
         raise Exception(f"Error getting budget for period: {e}")
 
-async def set_opted_in_for_period(conn: aiosqlite.Connection,
-                                  user_id: str,
-                                guild_id: str,
-                                budget_period: str,
-                                opted_in: bool):
-    """Sets the opted_in flag for a user's budget for a certain period.
-    
-    Args:
-        opted_in: True to opt in, False to opt out.
-    """
-    await conn.execute(
-        """
-        UPDATE summary_channels
-        SET opted_in = ?
-        WHERE user_id = ? AND guild_id = ? AND budget_period = ?
-        """,
-        (1 if opted_in else 0, user_id, guild_id, budget_period)
-    )
-    await conn.commit()
+async def set_summary_channel_for_budget(conn: aiosqlite.Connection,
+                                         guild_id: str, 
+                                        channel_id: str,
+                                        user_id: str,
+                                        budget_period: str,
+                                        opted_in: bool = True):
+    """ Saves the channel where automatic summary for a budget should be posted.
+    Each (user, period) can only have 1 summary channel across all servers,
+    setting new channel means overwriting old channel.
 
-async def get_opted_in_for_period(conn: aiosqlite.Connection,
-                                  user_id: str, 
-                                guild_id: str,
-                                budget_period: str) -> bool:
-    """Check if user is opted in to a certain type of budget period.
-    Returns True if the user is opted in to automatic summaries, False otherwise."""
+    Args:
+        guild_id (str): _description_
+        channel_id (str): _description_
+    """
+    
+    try:
+        assert await get_budget_for_period(conn, user_id, budget_period)
+    except Exception as e:
+        raise Exception(f"Cannot set channel for a non-existent budget: {e}")
+
+    try:
+        await conn.execute(
+            """ 
+            INSERT INTO summary_channels (guild_id, channel_id, user_id, budget_period, opted_in)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (user_id, budget_period) DO UPDATE SET
+                guild_id = excluded.guild_id,
+                channel_id = excluded.channel_id
+            """,
+            (guild_id, channel_id, user_id, budget_period, 1 if opted_in else 0)
+        )
+        await conn.commit()
+    except Exception as e:
+        raise Exception(f"Error setting summary channel: {e}")
+
+async def get_summary_channel(conn: aiosqlite.Connection,
+                              user_id: str,
+                              budget_period: str):
+    """ Fetches the summary channel ID for a server.
+    Returns (guild_id, channel_id), or (None, None) of not set.
+
+    Args:
+        user_id (str): _description_
+        budget_period (str): _description_
+    """
     async with conn.execute(
-        """
-        SELECT opted_in FROM summary_channels
-        WHERE user_id = ? AND guild_id = ? AND budget_period = ?
+        """ 
+        SELECT guild_id, channel_id FROM summary_channels
+        WHERE user_id = ? AND budget_period = ?
         """,
-        (user_id, guild_id, budget_period)
+        (user_id, budget_period)
     ) as cursor:
         row = await cursor.fetchone()
-        # If no budget row exists at all, treat as opted out
-        return bool(row[0]) if row else False
+        return row if row else (None, None)
 
 async def get_entries_for_user_since(conn: aiosqlite.Connection,
                                      user_id: str,
@@ -314,6 +333,38 @@ async def get_entries_for_user_since(conn: aiosqlite.Connection,
     ) as cursor:
         return await cursor.fetchall()
 
+async def set_opted_out_for_period(conn: aiosqlite.Connection,
+                                  user_id: str,
+                                budget_period: str) -> int:
+    """ Delete summary channel info as opt out method.
+    Return the number of rows affected, 0 if no deletion happened.
+    """
+    async with conn.execute(
+        """
+        DELETE FROM summary_channels
+        WHERE user_id = ? AND budget_period = ?
+        """,
+        (user_id, budget_period)
+    ) as cursor:
+        await conn.commit()
+        return cursor.rowcount
+
+async def get_opted_in_for_period(conn: aiosqlite.Connection,
+                                  user_id: str, 
+                                budget_period: str) -> bool:
+    """Check if user is opted in to a certain type of budget period.
+    Returns True if the user is opted in to automatic summaries, False otherwise."""
+    async with conn.execute(
+        """
+        SELECT opted_in FROM summary_channels
+        WHERE user_id = ? AND budget_period = ?
+        """,
+        (user_id, budget_period)
+    ) as cursor:
+        row = await cursor.fetchone()
+        # If no row exists at all, treat as opted out
+        return bool(row[0]) if row else False
+
 async def get_all_opted_in_budgets(conn: aiosqlite.Connection,):
     """Fetches every budget row across all users.
     Returns a list of (user_id, budget_amount, budget_period, guild_id, channel_id).
@@ -332,50 +383,6 @@ async def get_all_opted_in_budgets(conn: aiosqlite.Connection,):
         """
     ) as cursor:
         return await cursor.fetchall()
-        
-async def set_summary_channel_for_budget(conn: aiosqlite.Connection,
-                                         guild_id: str, 
-                                        channel_id: str,
-                                        user_id: str,
-                                        budget_period: str,
-                                        opted_in: bool = True):
-    """ Saves the channel where automatic summary for a budget should be posted.
-    Each (user, period) can only have 1 summary channel across all servers,
-    setting new channel means overwriting old channel.
-
-    Args:
-        guild_id (str): _description_
-        channel_id (str): _description_
-    """
-    await conn.execute(
-        """ 
-        INSERT INTO summary_channels (guild_id, channel_id, user_id, budget_period, opted_in)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (user_id, budget_period,) DO UPDATE SET
-            guild_id = excluded.guild_id,
-            channel_id = excluded.channel_id
-        """,
-        (guild_id, channel_id, user_id, budget_period, 1 if opted_in else 0)
-    )
-    await conn.commit()
-
-async def get_summary_channel(conn: aiosqlite.Connection,
-                              guild_id: str):
-    """ Fetches the summary channel ID for a server.
-    Returns the channel_id string, or None of not set.
-
-    Args:
-        guild_id (str): _description_
-    """
-    async with conn.execute(
-        """ 
-        SELECT channel_id FROM summary_channels
-        WHERE guild_id = ?
-        """,
-        (guild_id,)
-    ) as cursor:
-        row = await cursor.fetchone()
-        return row[0] if row else None
         
 async def set_user_timezone(conn: aiosqlite.Connection,
                             user_id: str, 
