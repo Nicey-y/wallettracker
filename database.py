@@ -29,7 +29,7 @@ async def init_db():
                 user_id        TEXT NOT NULL,
                 budget_amount  REAL NOT NULL CHECK (budget_amount > 0),
                 budget_period  TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
-                PRIMARY KEY (budget_period, user_id)
+                PRIMARY KEY (user_id, budget_period)
             )
         """)
 
@@ -43,7 +43,7 @@ async def init_db():
                 user_id         TEXT NOT NULL,
                 budget_period   TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
                 opted_in        INTEGER NOT NULL DEFAULT 1,
-                PRIMARY KEY (budget_period, user_id)
+                PRIMARY KEY (user_id,budget_period)
             )
         """)
         print("summary_channels table done.")
@@ -223,7 +223,7 @@ async def set_budget(conn: aiosqlite.Connection,
             """
             INSERT INTO budgets (user_id, budget_amount, budget_period)
             VALUES (?, ?, ?)
-            ON CONFLICT (budget_period, user_id) DO UPDATE SET
+            ON CONFLICT (user_id, budget_period) DO UPDATE SET
                 budget_amount = excluded.budget_amount
             """,
             (user_id, amount, period)
