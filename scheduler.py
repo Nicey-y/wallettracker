@@ -33,7 +33,7 @@ def get_period_start(budget_period: str) -> str:
 # ----------- FOR TESTING PURPOSE -----------
 # ###########################################
 # def is_summary_due(budget_period: str, user_tz: str) -> bool:
-#     return True  # temporary — remove after testing
+#     return True  # temporary, remove after testing
 
 def is_summary_due(budget_period: str, user_tz: str) -> bool:
     """Checks whether a summary should be fired right now for a given user.
@@ -90,7 +90,7 @@ async def send_scheduled_summaries():
     print(f"[Scheduler] Hourly check running at {datetime.now(timezone.utc).strftime('%H:%M UTC')}...")
 
     try:
-        all_budgets = await database.get_all_budgets()
+        all_budgets = await database.get_all_opted_in_budgets()
         # row indices: 0=user_id, 1=guild_id, 2=budget_amount, 3=budget_period, 4=opted_in
         relevant = [row for row in all_budgets if row[3] == budget_period and row[4] == 1]
 
@@ -118,7 +118,7 @@ async def send_scheduled_summaries():
 
             # Fetch entries for this period
             period_start = get_period_start(budget_period)
-            entries      = await database.get_entries(user_id, guild_id, period_start)
+            entries      = await database.get_entries_for_user_since(user_id, guild_id, period_start)
 
             total_spent = sum(row[0] for row in entries)
             remaining   = budget_amount - total_spent

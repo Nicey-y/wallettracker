@@ -2,6 +2,8 @@
 
 wallet tracker is a bot that tracks your spending across a time period through your spending logs. e.g. you can set the budget to $100 per week, then every time you spend money, you do /log spend to keep track of it. At the end of the period, wallet will give you a summary of your spending.
 
+The bot is currently inactive for lack of server hosting fees. [See production screenshots here](https://postimg.cc/gallery/6pgmfcs).
+
 # 2. How to use
 
 ## 2.1. Initialise
@@ -56,8 +58,8 @@ wallet tracker is a bot that tracks your spending across a time period through y
 
 *If you’re familiar with bots that work when you run commands in the DM between you and the bot, **this bot is not the case** and works in a server only. This feature will be implemented in a future update.*
 
-*Because I’m dirt poor, I’m on the free version of Railway that doesn’t have persistent storage, which means **every time a new update is published, all previous data is lost**. If you are one of the 3 people who actually use this bot, I will tell you when I publish an update, which I will try not not do so frequently.*
+*I’m on the free version of Railway that doesn’t have persistent storage, which means **every time a new update is published, all previous data is lost**. If you are one of the 3 people who actually use this bot, I will tell you when I publish an update, which I will try not not do so frequently.*
 
-*ModLove,*
+*Love,*
 
 *Nicey*

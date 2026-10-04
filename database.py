@@ -1,8 +1,6 @@
 import aiosqlite
 
 RECENT_ENTRY_EDIT_LIMIT = 10
-HARD_ENTRY_EDIT_LIMIT = 25
-
 DB_PATH = "wallettracker.db"
 
 async def init_db():
@@ -16,11 +14,10 @@ async def init_db():
         # Create a table named `entries` that stores all spending logs
         await db.execute("""
             CREATE TABLE IF NOT EXISTS entries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id     TEXT NOT NULL,
-                guild_id    TEXT NOT NULL,
-                amount      REAL NOT NULL,
-                category    TEXT,
+                amount      REAL NOT NULL CHECK (amount > 0),
+                category    TEXT NOT NULL CHECK (category IN ('Eat out & Takeaway', 'Entertainment', 'Grocery', 'Snack', 'Utils & Bills', 'Other')),
                 note        TEXT,
                 timestamp   TEXT DEFAULT (datetime('now'))
             )
@@ -29,39 +26,41 @@ async def init_db():
         # Create a table named `budgets` that stores user-customised budgets
         await db.execute("""
             CREATE TABLE IF NOT EXISTS budgets (
-                guild_id       TEXT NOT NULL,
                 user_id        TEXT NOT NULL,
-                budget_amount  REAL NOT NULL,
-                budget_period  TEXT NOT NULL DEFAULT 'weekly',
-                opted_in       INTEGER NOT NULL DEFAULT 1,
-                PRIMARY KEY (guild_id, user_id)
+                budget_amount  REAL NOT NULL CHECK (budget_amount > 0),
+                budget_period  TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
+                PRIMARY KEY (budget_period, user_id)
             )
         """)
 
         # Create a `summary_channels` table so that the bot knows
         # which channel in the server it should send the summary message in
+        # each user can have one summary channel per server
         await db.execute("""
             CREATE TABLE IF NOT EXISTS summary_channels (
-                guild_id    TEXT PRIMARY KEY,
-                channel_id  TEXT NOT NULL
+                guild_id        TEXT NOT NULL,
+                channel_id      TEXT NOT NULL,
+                user_id         TEXT NOT NULL,
+                budget_period   TEXT NOT NULL DEFAULT 'weekly' CHECK (budget_period IN ('daily', 'weekly', 'monthly')),
+                opted_in        INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (budget_period, user_id)
             )
         """)
         print("summary_channels table done.")
 
-        # Create a `user_timezones` table to store a user' timezone
         await db.execute(""" 
-            CREATE TABLE IF NOT EXISTS user_timezones (
+            CREATE TABLE IF NOT EXISTS users (
                 user_id TEXT PRIMARY KEY,
                 timezone TEXT NOT NULL DEFAULT 'UTC'
             )
         """)
-        print("user_timezones table done.")
+        print("users table done.")
 
         await db.commit()
         print("Committed.")
 
-async def add_entry(user_id: str,
-                    guild_id: str,
+async def add_entry(conn: aiosqlite.Connection,
+                    user_id: str,
                     amount: float,
                     category: str,
                     note: str = None):
@@ -69,61 +68,57 @@ async def add_entry(user_id: str,
 
     Args:
         user_id (str): the Discord ID of the user logging the spend
-        guild_id (str): the Discord ID of the server it was logged in.
         amount (float): how much was spent
         category (str): what it was spent on (e.g. "coffee")
         note (str, optional): optional extra description. Defaults to None.
     """
+    await conn.execute(
+        """ 
+        INSERT INTO entries (user_id, amount, category, note)
+        VALUES (?, ?, ?, ?)
+        """,
+        (user_id, amount, category, note)
+        # ?-style is used to avoid SQL injection
+    ) # "entries" is table name
+    await conn.commit()
 
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """ 
-            INSERT INTO entries (user_id, guild_id, amount, category, note)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (user_id, guild_id, amount, category, note)
-            # ?-style is used to avoid SQL injection
-        ) # "entries" is table name
-        await db.commit()
-
-async def get_recent_entries(user_id: str,
-                             guild_id: str,
-                             limit: int = RECENT_ENTRY_EDIT_LIMIT):
+async def get_recent_entries_by_user(conn: aiosqlite.Connection,
+                                     user_id: str,
+                                    limit: int = RECENT_ENTRY_EDIT_LIMIT):
     """Fetches the most recent entries for a user in a server.
 
     Args:
         user_id (str): _description_
-        guild_id (str): _description_
         limit (int, optional): how many entries to return. Defaults to 10.
+    Return:
+        list of entries, each is a tuple of (id, amount, category, note, timestamp)
     """
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            """ 
-            SELECT id, amount, category, note, timestamp
-            FROM entries
-            WHERE user_id = ? AND guild_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-            """,
-            (user_id, guild_id, limit)
-        ) as cursor:
-            return await cursor.fetchall()
+    async with conn.execute(
+        """ 
+        SELECT id, amount, category, note, timestamp
+        FROM entries
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+        """,
+        (user_id, limit)
+    ) as cursor:
+        return await cursor.fetchall()
         
-async def edit_entry(entry_id: int,
+async def edit_entry(conn: aiosqlite.Connection,
+                     entry_id: int,
                      user_id: str,
-                     guild_id: str,
                      amount: float = None,
                      category: str = None,
-                     note: str = None):
+                     note: str = None) -> bool:
     """Edits an existing entry. Only updates fields that are provided.
 
     The user_id and guild_id checks ensure a user can only edit their own
-    entries within their server — not someone else's.
+    entries within their server and not someone else's.
 
     Args:
         entry_id (int):             the ID of the entry to edit.
         user_id (str):              must match the entry's owner.
-        guild_id (str):             must match the entry's server.
         amount (float, optional):   new amount, or None to leave unchanged.
         category (str, optional):   new category, or None to leave unchanged.
         note (str, optional):       new note, or None to leave unchanged.
@@ -153,253 +148,264 @@ async def edit_entry(entry_id: int,
         return False
     
     # Add the WHERE clause values
-    values.extend([entry_id, user_id, guild_id])
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute(
-            f""" 
-            UPDATE entries
-            SET {', '.join(fields)}
-            WHERE id = ? AND user_id = ? AND guild_id = ?
-            """,
-            values
-        )
-        await db.commit()
-        # rowcount tells us how many rows were actually updated
-        # if 0, the entry didn't exist or didn't belong to this user
-        return cursor.rowcount > 0
+    values.extend([entry_id, user_id])
+    cursor = await conn.execute(
+        f""" 
+        UPDATE entries
+        SET {', '.join(fields)}
+        WHERE id = ? AND user_id = ?
+        """,
+        values
+    )
+    await conn.commit()
+    # rowcount tells us how many rows were actually updated
+    # if 0, the entry didn't exist or didn't belong to this user
+    return cursor.rowcount > 0
 
 # Need to get an entry for the confirmation step
 # where we show the user what they're about to delete 
-# before we actually remove it    
-async def get_entry_by_id(entry_id: int,
-                          user_id: str,
-                          guild_id: str):
+# before we actually remove it
+async def get_entry_by_id(conn: aiosqlite.Connection,
+                          entry_id: int,
+                          user_id: str):
     """Fetches a single entry by ID, only if it belongs to this user in this server.
     Returns (id, amount, category, note, timestamp) or None if not found.
 
     Args:
         entry_id (int): _description_
         user_id (str): _description_
-        guild_id (str): _description_
     """
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            """ 
-            SELECT id, amount, category, note, timestamp
-            FROM entries
-            WHERE id = ? AND user_id = ? AND guild_id = ?
-            """,
-            (entry_id, user_id, guild_id)
-        ) as cursor:
-            return await cursor.fetchone()
+    async with conn.execute(
+        """ 
+        SELECT id, amount, category, note, timestamp
+        FROM entries
+        WHERE id = ? AND user_id = ?
+        """,
+        (entry_id, user_id)
+    ) as cursor:
+        return await cursor.fetchone()
         
-async def delete_entry(entry_id: str,
-                       user_id: str,
-                       guild_id: str):
+async def delete_entry(conn: aiosqlite.Connection,
+                       entry_id: str,
+                       user_id: str) -> bool:
     """Deletes an entry by ID. Only deletes if it belongs to this user in this server.
     Return True if a row was deleted, False if no matching entry was found.
 
     Args:
         entry_id (str): _description_
         user_id (str): _description_
-        guild_id (str): _description_
     """
     
-    async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute(
-            """ 
-            DELETE FROM entries
-            WHERE id = ? AND user_id = ? AND guild_id = ?
-            """,
-            (entry_id, user_id, guild_id)
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+    cursor = await conn.execute(
+        """ 
+        DELETE FROM entries
+        WHERE id = ? AND user_id = ?
+        """,
+        (entry_id, user_id)
+    )
+    await conn.commit()
+    return cursor.rowcount > 0
 
-async def set_budget(user_id: str,
-                     guild_id: str,
+async def set_budget(conn: aiosqlite.Connection,
+                     user_id: str,
                      amount: float,
                      period: str):
-    """ Saves a user's budget. Overwrites if one already exists for this user in this server.
+    """ Saves a user's budget. Overwrites if one already exists for this user.
+    Error raised for invalid amount or period.
 
     Args:
         user_id (str): the Discord ID of the user logging the spend
-        guild_id (str): the Discord ID of the server it was logged in.
         amount (float): the budget amount (e.g. 100.00)
         period (str): how often the budget resets (e.g. 'weekly', 'monthly')
     """
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
+    try:
+        await conn.execute(
             """
-            INSERT INTO budgets (user_id, guild_id, budget_amount, budget_period)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT (guild_id, user_id) DO UPDATE SET
-                budget_amount = excluded.budget_amount,
-                budget_period = excluded.budget_period
+            INSERT INTO budgets (user_id, budget_amount, budget_period)
+            VALUES (?, ?, ?)
+            ON CONFLICT (budget_period, user_id) DO UPDATE SET
+                budget_amount = excluded.budget_amount
             """,
-            (user_id, guild_id, amount, period)
-        )   # 'ON CONFLICT ... DO UPDATE': upsert -  try to insert a new row, 
-            # but if a row with the same guild_id and user_id already exists 
+            (user_id, amount, period)
+        )   # 'ON CONFLICT ... DO UPDATE': upsert - try to insert a new row, 
+            # but if a row with the same budget_period and user_id already exists 
             # (which is the primary key we defined), update it instead of throwing an error
-        await db.commit()
+    except Exception as e:
+        raise Exception(f"Error setting budget: {e}")
+    await conn.commit()
 
-async def set_opted_in(user_id: str, guild_id: str, opted_in: bool):
-    """Sets the opted_in flag for a user's budget.
-    
-    Args:
-        opted_in: True to opt in, False to opt out.
-    """
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """
-            UPDATE budgets
-            SET opted_in = ?
-            WHERE user_id = ? AND guild_id = ?
-            """,
-            (1 if opted_in else 0, user_id, guild_id)
-        )
-        await db.commit()
-
-
-async def get_opted_in(user_id: str, guild_id: str) -> bool:
-    """Returns True if the user is opted in to automatic summaries, False otherwise."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            """
-            SELECT opted_in FROM budgets
-            WHERE user_id = ? AND guild_id = ?
-            """,
-            (user_id, guild_id)
-        ) as cursor:
-            row = await cursor.fetchone()
-            # If no budget row exists at all, treat as opted out
-            return bool(row[0]) if row else False
-
-async def get_budget(user_id: str, guild_id: str):
-    """ Fetches the budget for a user in a server.
+async def get_budget_for_period(conn: aiosqlite.Connection,
+                                user_id: str, 
+                                budget_period: str):
+    """ Fetches the budget of a period for a user.
     Returns a row (budget_amount, budget_period) or None if no budget is set.
 
     Args:
         user_id (str): _description_
-        guild_id (str): _description_
     """
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
+    try:
+        async with conn.execute(
             """
             SELECT budget_amount, budget_period
             FROM budgets
-            WHERE user_id = ? AND guild_id = ?
+            WHERE user_id = ? AND budget_period = ?
             """,
-            (user_id, guild_id)
+            (user_id, budget_period)
         ) as cursor:
             return await cursor.fetchone()
-            # fetchone() returns a single row as a tuple e.g. (500.0, 'monthly')
-            # or None if no row was found
+    except Exception as e:
+        raise Exception(f"Error getting budget for period: {e}")
 
-async def get_entries(user_id: str,
-                      guild_id: str,
-                      since: str):
-    """ Fetches all spending entries for a user since a given timestamp.
-
-    Args:
-        user_id (str): _description_
-        guild_id (str): _description_
-        since (str): an ISO timestamp string e.g. '2024-01-01 00:00:00'
-                    only entries after this point are returned.
-    Returns a list of rows, each row being (amount, category, note, timestamp).
-    """
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            """
-            SELECT amount, category, note, timestamp
-            FROM entries
-            WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
-            ORDER BY timestamp DESC
-            """,
-            (user_id, guild_id, since)
-        ) as cursor:
-            return await cursor.fetchall()
-            # fetchall() returns a list of tuples, e.g.
-            # [(12.50, 'coffee', None, '2024-01-03 09:00:00'),
-            #  (8.00, 'transport', 'bus', '2024-01-02 08:30:00')]
-
-async def get_all_budgets():
-    """Fetches every budget row across all users and servers.
-    Returns a list of (user_id, guild_id, budget_amount, budget_period, opted_in).
-    """
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            """
-            SELECT user_id, guild_id, budget_amount, budget_period, opted_in
-            FROM budgets
-            """
-        ) as cursor:
-            return await cursor.fetchall()
-        
-async def set_summary_channel(guild_id: str, channel_id: str):
-    """ Saves the channel where automatic summaries should be posted for a server.
+async def set_summary_channel_for_budget(conn: aiosqlite.Connection,
+                                         guild_id: str, 
+                                        channel_id: str,
+                                        user_id: str,
+                                        budget_period: str,
+                                        opted_in: bool = True):
+    """ Saves the channel where automatic summary for a budget should be posted.
+    Each (user, period) can only have 1 summary channel across all servers,
+    setting new channel means overwriting old channel.
 
     Args:
         guild_id (str): _description_
         channel_id (str): _description_
     """
+    
+    try:
+        assert await get_budget_for_period(conn, user_id, budget_period)
+    except Exception as e:
+        raise Exception(f"Cannot set channel for a non-existent budget: {e}")
 
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
+    try:
+        await conn.execute(
             """ 
-            INSERT INTO summary_channels (guild_id, channel_id)
-            VALUES (?, ?)
-            ON CONFLICT (guild_id) DO UPDATE SET
+            INSERT INTO summary_channels (guild_id, channel_id, user_id, budget_period, opted_in)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (user_id, budget_period) DO UPDATE SET
+                guild_id = excluded.guild_id,
                 channel_id = excluded.channel_id
             """,
-            (guild_id, channel_id)
+            (guild_id, channel_id, user_id, budget_period, 1 if opted_in else 0)
         )
-        await db.commit()
+        await conn.commit()
+    except Exception as e:
+        raise Exception(f"Error setting summary channel: {e}")
 
-async def get_summary_channel(guild_id: str):
+async def get_summary_channel(conn: aiosqlite.Connection,
+                              user_id: str,
+                              budget_period: str):
     """ Fetches the summary channel ID for a server.
-    Returns the channel_id string, or None of not set.
+    Returns (guild_id, channel_id), or (None, None) of not set.
 
     Args:
-        guild_id (str): _description_
+        user_id (str): _description_
+        budget_period (str): _description_
     """
-    # print("--- from get_summary_channel")
-    # print(guild_id)
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            """ 
-            SELECT channel_id FROM summary_channels
-            WHERE guild_id = ?
-            """,
-            (guild_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return row[0] if row else None
+    async with conn.execute(
+        """ 
+        SELECT guild_id, channel_id FROM summary_channels
+        WHERE user_id = ? AND budget_period = ?
+        """,
+        (user_id, budget_period)
+    ) as cursor:
+        row = await cursor.fetchone()
+        return row if row else (None, None)
+
+async def get_entries_for_user_since(conn: aiosqlite.Connection,
+                                     user_id: str,
+                                    since: str):
+    """ Fetches all spending entries for a user since a given timestamp.
+
+    Args:
+        user_id (str): _description_
+        since (str): an ISO timestamp string e.g. '2024-01-01 00:00:00'
+                    only entries after this point are returned.
+    Returns a list of rows, each row being (amount, category, note, timestamp).
+    """
+    async with conn.execute(
+        """
+        SELECT amount, category, note, timestamp
+        FROM entries
+        WHERE user_id = ? AND timestamp >= ?
+        ORDER BY timestamp DESC
+        """,
+        (user_id, since)
+    ) as cursor:
+        return await cursor.fetchall()
+
+async def set_opted_out_for_period(conn: aiosqlite.Connection,
+                                  user_id: str,
+                                budget_period: str) -> int:
+    """ Delete summary channel info as opt out method.
+    Return the number of rows affected, 0 if no deletion happened.
+    """
+    async with conn.execute(
+        """
+        DELETE FROM summary_channels
+        WHERE user_id = ? AND budget_period = ?
+        """,
+        (user_id, budget_period)
+    ) as cursor:
+        await conn.commit()
+        return cursor.rowcount
+
+async def get_opted_in_for_period(conn: aiosqlite.Connection,
+                                  user_id: str, 
+                                budget_period: str) -> bool:
+    """Check if user is opted in to a certain type of budget period.
+    Returns True if the user is opted in to automatic summaries, False otherwise."""
+    async with conn.execute(
+        """
+        SELECT opted_in FROM summary_channels
+        WHERE user_id = ? AND budget_period = ?
+        """,
+        (user_id, budget_period)
+    ) as cursor:
+        row = await cursor.fetchone()
+        # If no row exists at all, treat as opted out
+        return bool(row[0]) if row else False
+
+async def get_all_opted_in_budgets(conn: aiosqlite.Connection,):
+    """Fetches every budget row across all users.
+    Returns a list of (user_id, budget_amount, budget_period, guild_id, channel_id).
+    """
+    async with conn.execute(
+        """
+        SELECT b.user_id AS user_id, budget_amount, 
+                b.budget_period AS budget_period, 
+                s.guild_id AS guild_id, 
+                S.channel_id AS channel_id
+        FROM budgets AS b 
+        INNER JOIN summary_channels AS s
+            ON  b.user_id = s.user_id
+            AND b.budget_period = s.budget_period
+        WHERE s.opted_in = 1
+        """
+    ) as cursor:
+        return await cursor.fetchall()
         
-async def set_user_timezone(user_id: str, tz: str):
+async def set_user_timezone(conn: aiosqlite.Connection,
+                            user_id: str, 
+                            tz: str):
     """Saves a user's preferred timezone.
     
     Args:
         user_id: The Discord ID of the user.
         tz:      A valid timezone string e.g. 'Australia/Melbourne'.
     """
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            """
-            INSERT INTO user_timezones (user_id, timezone)
-            VALUES (?, ?)
-            ON CONFLICT (user_id) DO UPDATE SET
-                timezone = excluded.timezone
-            """,
-            (user_id, tz)
-        )
-        await db.commit()
+    await conn.execute(
+        """
+        INSERT INTO users (user_id, timezone)
+        VALUES (?, ?)
+        ON CONFLICT (user_id) DO UPDATE SET
+            timezone = excluded.timezone
+        """,
+        (user_id, tz)
+    )
+    await conn.commit()
 
-async def get_user_timezone(user_id: str) -> str:
+async def get_user_timezone(conn: aiosqlite.Connection,
+                            user_id: str) -> str:
     """Fetches a user's timezone. Return 'UTC' if not set.
 
     Args:
@@ -408,15 +414,13 @@ async def get_user_timezone(user_id: str) -> str:
     Returns:
         str: _description_
     """
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            """
-            SELECT timezone
-            FROM user_timezones
-            WHERE user_id = ?
-            """,
-            (user_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return row[0] if row else "UTC"
+    async with conn.execute(
+        """
+        SELECT timezone
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    ) as cursor:
+        row = await cursor.fetchone()
+        return row[0] if row else "UTC"
