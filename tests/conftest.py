@@ -1,6 +1,8 @@
 import pytest
 import aiosqlite
 import pytest_asyncio
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import database
 
 pytest_asyncio_mode = "auto"
@@ -9,15 +11,16 @@ pytest_asyncio_mode = "auto"
 # data cease to exist when connection is close
 DB_PATH = ":memory:"  
 
+@pytest.fixture(scope="function")
 async def db():
     """ Create the databse tables if they don't exist yet.
     Called once only when the bot starts up.
     """
     print("Connecting to database...")
-    db = aiosqlite.connect(DB_PATH)
+    conn = await aiosqlite.connect(DB_PATH)
     print("Connected. Creating tables...")
 
-    await db.execute("""
+    await conn.execute("""
         CREATE TABLE IF NOT EXISTS entries (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     TEXT NOT NULL,
@@ -28,7 +31,7 @@ async def db():
         )
     """) 
 
-    await db.execute("""
+    await conn.execute("""
         CREATE TABLE IF NOT EXISTS budgets (
             user_id        TEXT NOT NULL,
             budget_amount  REAL NOT NULL,
@@ -38,18 +41,18 @@ async def db():
     """)
 
     # Each user can have only one summary channel across all servers
-    await db.execute("""
+    await conn.execute("""
         CREATE TABLE IF NOT EXISTS summary_channels (
             guild_id        TEXT PRIMARY KEY,
             channel_id      TEXT NOT NULL,
             user_id         TEXT NOT NULL,
             budget_period   TEXT NOT NULL DEFAULT 'weekly',
-            opted_in        INTEGER NOT NULL DEFAULT 1,
+            opted_in        INTEGER NOT NULL DEFAULT 1
         )
     """)
     print("summary_channels table done.")
 
-    await db.execute(""" 
+    await conn.execute(""" 
         CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
             timezone TEXT NOT NULL DEFAULT 'UTC'
@@ -57,11 +60,15 @@ async def db():
     """)
     print("users table done.")
 
-    await db.commit()
+    await conn.commit()
     print("Committed.")
 
-    yield db
+    yield conn
 
-    await db.close()
+    await conn.close()
 
-        
+@pytest.fixture
+async def seed_15_entries_same_user(db):
+    categories = ['Eat out & Takeaway', 'Entertainment', 'Grocery', 'Snack', 'Utils & Bills', 'Other']
+    for i in range(16):
+        await database.add_entry(db, 'user1', float(i), categories[i%6], None)    

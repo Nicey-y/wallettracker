@@ -1,6 +1,5 @@
 import database
 import pytz
-import discord
 
 def validate_amount(amount) -> str | None:
     """Return error message as string if amount is invalid, None otherwise
@@ -13,7 +12,7 @@ def validate_amount(amount) -> str | None:
     """
     try:
         amount_float = float(amount)
-    except ValueError:
+    except (ValueError, TypeError) as e:
         return "❌ Budget amount must be a number (e.g. 500 or 99.99)."
     
     if amount_float is None or amount_float <= 0:

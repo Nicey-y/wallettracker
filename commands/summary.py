@@ -73,7 +73,7 @@ class SummaryCommands(app_commands.Group):
         period_start = get_period_start(budget_period)
 
         # Fetch all entries since the beginning of the period
-        entries = await database.get_entries(user_id, guild_id, period_start)
+        entries = await database.get_entries_for_user_since(user_id, guild_id, period_start)
 
         # Add up total spent
         total_spent = sum(row[0] for row in entries)

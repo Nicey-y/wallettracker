@@ -118,7 +118,7 @@ async def send_scheduled_summaries():
 
             # Fetch entries for this period
             period_start = get_period_start(budget_period)
-            entries      = await database.get_entries(user_id, guild_id, period_start)
+            entries      = await database.get_entries_for_user_since(user_id, guild_id, period_start)
 
             total_spent = sum(row[0] for row in entries)
             remaining   = budget_amount - total_spent
