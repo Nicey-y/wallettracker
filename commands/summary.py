@@ -67,7 +67,6 @@ class SummaryCommands(app_commands.Group):
                    period: app_commands.Choice[str]):
 
         user_id = str(interaction.user.id)
-        guild_id = str(interaction.guild.id)
 
         # Fetch user's budget
         async with aiosqlite.connect(database.DB_PATH) as conn:
@@ -202,7 +201,6 @@ class SummaryCommands(app_commands.Group):
                      interaction: discord.Interaction,
                      period: app_commands.Choice[str]):
         user_id  = str(interaction.user.id)
-        guild_id = str(interaction.guild.id)
 
         # Check they actually have a budget set
         async with aiosqlite.connect(database.DB_PATH) as conn:
