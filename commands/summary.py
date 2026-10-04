@@ -4,6 +4,7 @@ from discord import app_commands
 from datetime import datetime, timedelta, timezone
 import database
 import pytz
+from helpers import *
 
 def get_period_start(budget_period: str) -> str:
     """ Work out the datetime when the current budget period started.
@@ -56,20 +57,15 @@ class SummaryCommands(app_commands.Group):
     @app_commands.describe(
         period="How often your budget resets"
     )
-    # show a dropdown menu for the period argument
-    @app_commands.choices(period=[
-        app_commands.Choice(name="Daily",   value="daily"),
-        app_commands.Choice(name="Weekly",  value="weekly"),
-        app_commands.Choice(name="Monthly",  value="monthly"),
-    ])
+    @app_commands.autocomplete(period=period_autocomplete)
     async def show(self, 
                    interaction: discord.Interaction,
-                   period: app_commands.Choice[str]):
+                   period: str):
 
         user_id = str(interaction.user.id)
 
         # Fetch user's budget
-        budget_amount, budget_period = await database.get_budget_for_period(user_id, period.value)
+        budget_amount, budget_period = await database.get_budget_for_user_period(user_id, period)
 
         if budget_amount is None:
             await interaction.response.send_message(
@@ -188,19 +184,14 @@ class SummaryCommands(app_commands.Group):
     @app_commands.describe(
         period="How often your budget resets"
     )
-    # show a dropdown menu for the period argument
-    @app_commands.choices(period=[
-        app_commands.Choice(name="Daily",   value="daily"),
-        app_commands.Choice(name="Weekly",  value="weekly"),
-        app_commands.Choice(name="Monthly",  value="monthly"),
-    ])
+    @app_commands.autocomplete(period=period_autocomplete)
     async def optout(self, 
                      interaction: discord.Interaction,
-                     period: app_commands.Choice[str]):
+                     period: str):
         user_id  = str(interaction.user.id)
 
         # Check they actually have a budget set
-        budget_amount, budget_period = await database.get_budget_for_period(user_id, period.value)
+        budget_amount, budget_period = await database.get_budget_for_user_period(user_id, period)
 
         if budget_amount is None:
             await interaction.response.send_message(
@@ -210,7 +201,7 @@ class SummaryCommands(app_commands.Group):
             return
 
         # Check if they're already opted out
-        if not await database.get_opted_in_for_period(user_id, period.value):
+        if not await database.get_opted_in_for_period(user_id, period):
             await interaction.response.send_message(
                 "You're already opted out of automatic summaries. "
                 "Run `/budget setchannel` to opt back in.",
@@ -218,11 +209,11 @@ class SummaryCommands(app_commands.Group):
             )
             return
 
-        await database.set_opted_out_for_period(user_id, period.value)
+        await database.set_opted_out_for_period(user_id, period)
 
         await interaction.response.send_message(
             "✅ You've opted out of automatic summaries.\n"
-            "Your budget and spending data are still saved — run `/summary optin` any time to opt back in.\n"
+            "Your budget and spending data are still saved - run `/summary optin` any time to opt back in.\n"
             "You can still view your summary manually with `/summary show`.",
             ephemeral=True
         )

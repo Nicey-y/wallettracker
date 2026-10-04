@@ -256,9 +256,9 @@ async def set_budget(user_id: str,
         raise Exception(f"Error setting budget: {e}")
     await conn.commit()
 
-async def get_budget_for_period(user_id: str, 
+async def get_budget_for_user_period(user_id: str, 
                                 budget_period: str,
-                          conn: aiosqlite.Connection = None):
+                                conn: aiosqlite.Connection = None):
     """ Fetches the budget of a period for a user.
     Returns a row (budget_amount, budget_period) or None if no budget is set.
 
@@ -280,6 +280,26 @@ async def get_budget_for_period(user_id: str,
     except Exception as e:
         raise Exception(f"Error getting budget for period: {e}")
 
+async def get_periods_for_user(user_id: str, 
+                               conn: aiosqlite.Connection = None) -> list[str]:
+    """Get the list of budget periods the user has registered.
+    e.g. ['daily', 'monthly']
+
+    Args:
+        user_id (str): _description_
+    """
+    if conn is None:
+        conn = await get_conn()
+    async with conn.execute(
+        """
+        SELECT budget_period FROM budgets
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    ) as cursor:
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
 async def set_summary_channel_for_budget(guild_id: str, 
                                         channel_id: str,
                                         user_id: str,
@@ -295,9 +315,9 @@ async def set_summary_channel_for_budget(guild_id: str,
         channel_id (str): _description_
     """
     if conn is None:
-        conn = await get_conn()    
+        conn = await get_conn()
     try:
-        assert await get_budget_for_period(conn, user_id, budget_period)
+        assert await get_budget_for_user_period(user_id, budget_period)
     except Exception as e:
         raise Exception(f"Cannot set channel for a non-existent budget: {e}")
 
