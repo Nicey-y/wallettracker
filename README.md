@@ -32,8 +32,6 @@ The bot is currently inactive for lack of server hosting fees. [See production s
 
 `/summary optout` : Stop receiving automatic summaries
 
-`/summary optin` : Resume receiving automatic summaries
-
 ## 2.4. Other
 
 `/ping` : Check if bot is online
