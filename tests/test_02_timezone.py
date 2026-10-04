@@ -4,7 +4,6 @@ import pytest_asyncio
 from helpers import *
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from utils.validate import *
 from database import set_user_timezone, get_user_timezone
 
 pytest_asyncio_mode = "auto"

@@ -33,7 +33,7 @@ def get_period_start(budget_period: str) -> str:
 # ----------- FOR TESTING PURPOSE -----------
 # ###########################################
 # def is_summary_due(budget_period: str, user_tz: str) -> bool:
-#     return True  # temporary — remove after testing
+#     return True  # temporary, remove after testing
 
 def is_summary_due(budget_period: str, user_tz: str) -> bool:
     """Checks whether a summary should be fired right now for a given user.
