@@ -1,13 +1,15 @@
 import pytest
 import pytest_asyncio
-
+from helpers import *
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.validate import *
-from database import add_entry, get_recent_entries_by_user, RECENT_ENTRY_EDIT_LIMIT
+from database import add_entry, get_recent_entries_by_user, RECENT_ENTRY_EDIT_LIMIT, \
+                    get_entry_by_id, edit_entry, \
+                    delete_entry
 
 pytest_asyncio_mode = "auto"
-# pytest tests/test_02_add_entry.py -v
+# pytest tests/test_02_entry.py -v
 
 class TestAddEntry:
     # pytest tests/test_02_add_entry.py::TestAddEntry::test_add_single_entry -v
@@ -112,5 +114,68 @@ class TestAddEntry:
         entries = await get_recent_entries_by_user(db, 'user1')
         assert len(entries) == 0
 
-# class TestEditEntry:
-#     async def test_edit_single_field(self, db):
+class TestEditEntry:
+    async def test_edit_single_field(self, db):
+        entry_id = await add_1_entry_return_id(db)
+
+        # edit amount
+        assert await edit_entry(db, entry_id, 'user1', amount=50.00)
+        entry = await get_entry_by_id(db, entry_id, 'user1')
+        assert entry[1] == 50.00
+
+        # edit category
+        assert await edit_entry(db, entry_id, 'user1', category='Snack')
+        entry = await get_entry_by_id(db, entry_id, 'user1')
+        assert entry[2] == 'Snack'
+
+        # edit note
+        assert await edit_entry(db, entry_id, 'user1', note='new note')
+        entry = await get_entry_by_id(db, entry_id, 'user1')
+        assert entry[3] == 'new note'
+
+    async def test_edit_2_fields(self, db):
+        entry_id = await add_1_entry_return_id(db)
+        
+        # edit amount & category
+        assert await edit_entry(db, entry_id, 'user1', amount=50.00, category='Snack')
+        entry = await get_entry_by_id(db, entry_id, 'user1')
+        assert entry[1] == 50.00
+        assert entry[2] == 'Snack'
+
+        # edit amount & note
+        assert await edit_entry(db, entry_id, 'user1', amount=30.00, note='new note 1')
+        entry = await get_entry_by_id(db, entry_id, 'user1')
+        assert entry[1] == 30.00
+        assert entry[3] == 'new note 1'
+
+        # edit category & note
+        assert await edit_entry(db, entry_id, 'user1', category='Other', note='new note 2')
+        entry = await get_entry_by_id(db, entry_id, 'user1')
+        assert entry[2] == 'Other'
+        assert entry[3] == 'new note 2'
+
+    async def test_edit_all_fields(self, db):
+        entry_id = await add_1_entry_return_id(db)
+                
+        # edit amount & category
+        assert await edit_entry(db, entry_id, 'user1', 
+                                amount=50.00, 
+                                category='Snack',
+                                note='new note')
+        entry = await get_entry_by_id(db, entry_id, 'user1')
+        assert entry[1] == 50.00
+        assert entry[2] == 'Snack'
+        assert entry[3] == 'new note'
+
+    async def test_edit_non_existent_entry(self, db):
+        assert await get_entry_by_id(db, 999, 'user1') is None
+        assert not await edit_entry(db, 999, 'user1', amount=50.00)
+
+class TestDeleteEntry:
+    async def test_delete_single_entry(self, db):
+        entry_id = await add_1_entry_return_id(db)
+        assert await delete_entry(db, entry_id, 'user1')
+        assert await get_entry_by_id(db, entry_id, 'user1') is None
+
+    async def test_delete_non_existent_entry(self, db):
+        assert not await delete_entry(db, 999, 'user1')
