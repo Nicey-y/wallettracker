@@ -5,7 +5,8 @@ from helpers import *
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.validate import *
-from database import set_budget, get_budget_for_period
+from database import set_budget, get_budget_for_user_period, \
+                    delete_user_budget, set_summary_channel_for_budget, get_summary_channel
 
 pytest_asyncio_mode = "auto"
 # pytest tests/test_02_budget.py -v
@@ -13,64 +14,80 @@ pytest_asyncio_mode = "auto"
 class TestBudget:
     async def test_set_new_valid_budget_pass(self, db):
         # Daily
-        await set_budget(db, 'user1', 10.00, 'daily')
-        budget = await get_budget_for_period(db, 'user1', 'daily')
+        await set_budget('user1', 10.00, 'daily', db)
+        budget = await get_budget_for_user_period('user1', 'daily', db)
         assert budget
         assert budget[0] == 10.00
         assert budget[1] == 'daily'
 
         # Weekly
-        await set_budget(db, 'user1', 40.00, 'weekly')
-        budget = await get_budget_for_period(db, 'user1', 'weekly')
+        await set_budget('user1', 40.00, 'weekly', conn=db)
+        budget = await get_budget_for_user_period('user1', 'weekly', conn=db)
         assert budget
         assert budget[0] == 40.00
         assert budget[1] == 'weekly'
 
         # Monthly
-        await set_budget(db, 'user1', 160.00, 'monthly')
-        budget = await get_budget_for_period(db, 'user1', 'monthly')
+        await set_budget('user1', 160.00, 'monthly', conn=db)
+        budget = await get_budget_for_user_period('user1', 'monthly', conn=db)
         assert budget
         assert budget[0] == 160.00
         assert budget[1] == 'monthly'
 
     async def test_change_budget_for_valid_period_pass(self, db):
         # Daily
-        await set_budget(db, 'user1', 10.00, 'daily')
-        await set_budget(db, 'user1', 20.00, 'daily')
-        budget = await get_budget_for_period(db, 'user1', 'daily')
+        await set_budget('user1', 10.00, 'daily', conn=db)
+        await set_budget('user1', 20.00, 'daily', conn=db)
+        budget = await get_budget_for_user_period('user1', 'daily', conn=db)
         assert budget
         assert budget[0] == 20.00
         assert budget[1] == 'daily'
 
         # Weekly
-        await set_budget(db, 'user1', 40.00, 'weekly')
-        await set_budget(db, 'user1', 80.00, 'weekly')
-        budget = await get_budget_for_period(db, 'user1', 'weekly')
+        await set_budget('user1', 40.00, 'weekly', conn=db)
+        await set_budget('user1', 80.00, 'weekly', conn=db)
+        budget = await get_budget_for_user_period('user1', 'weekly', conn=db)
         assert budget
         assert budget[0] == 80.00
         assert budget[1] == 'weekly'
 
         # Monthly
-        await set_budget(db, 'user1', 160.00, 'monthly')
-        await set_budget(db, 'user1', 320.00, 'monthly')
-        budget = await get_budget_for_period(db, 'user1', 'monthly')
+        await set_budget('user1', 160.00, 'monthly', conn=db)
+        await set_budget('user1', 320.00, 'monthly', conn=db)
+        budget = await get_budget_for_user_period('user1', 'monthly', conn=db)
         assert budget
         assert budget[0] == 320.00
         assert budget[1] == 'monthly'
 
     async def test_get_for_no_budget_set(self, db):
-        assert await get_budget_for_period(db, 'user1', 'daily') is None
+        assert await get_budget_for_user_period('user1', 'daily', conn=db) is None
 
     async def test_get_invalid_budget_period(self, db):
-        await set_budget(db, 'user1', 160.00, 'monthly')
-        assert await get_budget_for_period(db, 'user1', 'Monthly') is None
+        await set_budget('user1', 160.00, 'monthly', conn=db)
+        assert await get_budget_for_user_period('user1', 'Monthly', conn=db) is None
 
     async def test_invalid_budget_period_set_exception(self, db):
         with pytest.raises(Exception) as e:
-            await set_budget(db, 'user1', 160.00, 'Monthly')
+            await set_budget('user1', 160.00, 'Monthly', conn=db)
         assert "CHECK constraint failed" in str(e)
 
     async def test_invalid_budget_amount_set_exception(self, db):
         with pytest.raises(Exception) as e:
-            await set_budget(db, 'user1', -160.00, 'Monthly')
+            await set_budget('user1', -160.00, 'Monthly', conn=db)
         assert "CHECK constraint failed" in str(e)
+
+    async def test_delete_existing_budget_no_summary_channel(self, db):
+        await set_budget('user1', 40.00, 'weekly', conn=db)
+        assert await delete_user_budget('user1', 'weekly', conn=db) == 1
+        assert await get_budget_for_user_period('user1', 'weekly', conn=db) is None
+
+    async def test_delete_existing_budget_with_summary_channel(self, db):
+        await set_budget('user1', 40.00, 'weekly', conn=db)
+        await set_summary_channel_for_budget('guild1', 'channel1', 'user1', 'weekly', conn=db)
+        assert await delete_user_budget('user1', 'weekly', conn=db) == 2
+        assert await get_budget_for_user_period('user1', 'weekly', conn=db) is None
+        server, _ = await get_summary_channel('user1', 'weekly', conn=db)
+        assert server is None
+
+    async def test_delete_non_existing_budget(self, db):
+        assert await delete_user_budget('user1', 'weekly', conn=db) == 0

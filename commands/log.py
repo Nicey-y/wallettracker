@@ -42,12 +42,11 @@ class DeleteConfirmView(discord.ui.View):
                       interaction: discord.Interaction,
                       button: discord.ui.Button):
         try:
-            async with aiosqlite.connect(database.DB_PATH) as conn:
-                deleted = await database.delete_entry(
-                    conn,
-                    entry_id=self.entry_id,
-                    user_id=self.user_id
-                )
+            
+            deleted = await database.delete_entry(
+                entry_id=self.entry_id,
+                user_id=self.user_id
+            )
 
             for item in self.children:
                 item.disabled = True
@@ -146,14 +145,13 @@ class LogCommands(app_commands.Group):
             return
         
         # Write to databse
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            await database.add_entry(
-                conn,
-                user_id=str(interaction.user.id),
-                amount=amount,
-                category=category.value, # category is a Choice object, .value gives us the string
-                note=note
-            )
+        
+        await database.add_entry(
+            user_id=str(interaction.user.id),
+            amount=amount,
+            category=category.value, # category is a Choice object, .value gives us the string
+            note=note
+        )
 
         # Build a confirmation message
         note_line = f"\n📝 Note: {note}" if note else ""
@@ -180,8 +178,7 @@ class LogCommands(app_commands.Group):
         
         user_id = str(interaction.user.id)
 
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            entries = await database.get_recent_entries_by_user(conn, user_id, limit)
+        entries = await database.get_recent_entries_by_user(user_id, limit)
 
         if not entries:
             await interaction.response.send_message(
@@ -243,15 +240,13 @@ class LogCommands(app_commands.Group):
         
         user_id  = str(interaction.user.id)
 
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            updated = await database.edit_entry(
-                conn,
-                entry_id=entry_id,
-                user_id=user_id,
-                amount=amount,
-                category=category,
-                note=note
-            )
+        updated = await database.edit_entry(
+            entry_id=entry_id,
+            user_id=user_id,
+            amount=amount,
+            category=category,
+            note=note
+        )
 
         if not updated:
             await interaction.response.send_message(
@@ -290,8 +285,7 @@ class LogCommands(app_commands.Group):
         guild_id = str(interaction.guild.id)
 
         # Fetch the entry first so we can show it in the confirmation
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            entry = await database.get_entry_by_id(conn, entry_id, user_id)
+        entry = await database.get_entry_by_id(entry_id, user_id)
 
         if entry is None:
             await interaction.response.send_message(

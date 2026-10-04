@@ -108,6 +108,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 async def main():
     async with bot:
         await bot.start(config.TOKEN)
+    await database.close_db()
 
 # Standard Python entry point pattern
 # asyncio.run() starts the async event loop and runs main()

@@ -24,15 +24,15 @@ The bot is currently inactive for lack of server hosting fees. [See production s
 
 `/budget set` : Set/Update your budget amount and period
 
-`/budget setchannel` : Set/Update the channel for automatic summaries
+`/budget setchannel` : Set/Update the channel/Opt in for automatic summaries
+
+`/budget delete` : Delete a previously set budget
 
 `/summary show` : View your spending summary for the current period
 
 `/summary settimezone` : Set/Update your local time zone for scheduled summaries
 
 `/summary optout` : Stop receiving automatic summaries
-
-`/summary optin` : Resume receiving automatic summaries
 
 ## 2.4. Other
 
@@ -53,6 +53,8 @@ The bot is currently inactive for lack of server hosting fees. [See production s
 `/budget set`
 
 `/budget setchannel`
+
+`/budget delete`
 
 `/summary settimezone`
 
