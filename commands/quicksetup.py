@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 import pytz
+import aiosqlite
 import database
 from utils.validate import *
 
@@ -97,9 +98,15 @@ class QuickSetupModal(discord.ui.Modal,
         user_id = str(interaction.user.id)
         guild_id = str(interaction.guild.id)
 
-        await database.set_budget(user_id, guild_id, amount, period)
-        await database.set_summary_channel_for_budget(guild_id, str(channel.id))
-        await database.set_user_timezone(user_id, tz)
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            await database.set_budget(conn, user_id, amount, period)
+            await database.set_summary_channel_for_budget(
+                conn, 
+                guild_id, 
+                str(channel.id),
+                user_id,
+                period)
+            await database.set_user_timezone(conn, user_id, tz)
 
         # Confirm back to the user with a summary of what was set
         local_time = __import__('datetime').datetime.now(
