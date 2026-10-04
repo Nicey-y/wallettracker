@@ -5,7 +5,8 @@ from helpers import *
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.validate import *
-from database import set_budget, get_budget_for_user_period
+from database import set_budget, get_budget_for_user_period, \
+                    delete_user_budget, set_summary_channel_for_budget, get_summary_channel
 
 pytest_asyncio_mode = "auto"
 # pytest tests/test_02_budget.py -v
@@ -74,3 +75,19 @@ class TestBudget:
         with pytest.raises(Exception) as e:
             await set_budget('user1', -160.00, 'Monthly', conn=db)
         assert "CHECK constraint failed" in str(e)
+
+    async def test_delete_existing_budget_no_summary_channel(self, db):
+        await set_budget('user1', 40.00, 'weekly', conn=db)
+        assert await delete_user_budget('user1', 'weekly', conn=db) == 1
+        assert await get_budget_for_user_period('user1', 'weekly', conn=db) is None
+
+    async def test_delete_existing_budget_with_summary_channel(self, db):
+        await set_budget('user1', 40.00, 'weekly', conn=db)
+        await set_summary_channel_for_budget('guild1', 'channel1', 'user1', 'weekly', conn=db)
+        assert await delete_user_budget('user1', 'weekly', conn=db) == 2
+        assert await get_budget_for_user_period('user1', 'weekly', conn=db) is None
+        server, _ = await get_summary_channel('user1', 'weekly', conn=db)
+        assert server is None
+
+    async def test_delete_non_existing_budget(self, db):
+        assert await delete_user_budget('user1', 'weekly', conn=db) == 0

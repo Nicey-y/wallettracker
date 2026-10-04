@@ -382,6 +382,40 @@ async def get_entries_for_user_since(user_id: str,
     ) as cursor:
         return await cursor.fetchall()
 
+async def delete_user_budget(user_id: str,
+                             budget_period: str,
+                             conn: aiosqlite.Connection = None):
+    """ Delete a registered budget period with corresponding summary info if
+    exists.
+    Return the number of rows affected, 0 if no deletion happened.
+    """
+    if conn is None:
+        conn = await get_conn()
+
+    row_count = 0
+    # Delete summary channel first since they depend on `budgets` rows
+    async with conn.execute(
+        """
+        DELETE FROM summary_channels
+        WHERE user_id = ? AND budget_period = ?
+        """,
+        (user_id, budget_period)
+    ) as cursor:
+        await conn.commit()
+        row_count += cursor.rowcount
+
+    # Delete budget info
+    async with conn.execute(
+        """
+        DELETE FROM budgets
+        WHERE user_id = ? AND budget_period = ?
+        """,
+        (user_id, budget_period)
+    ) as cursor:
+        await conn.commit()
+        row_count += cursor.rowcount
+    return row_count
+
 async def set_opted_out_for_period(user_id: str,
                                 budget_period: str,
                           conn: aiosqlite.Connection = None) -> int:

@@ -87,3 +87,27 @@ class BudgetCommands(app_commands.Group):
             f"Automatic summaries will be posted in {channel.mention}.",
             ephemeral=False
         )
+
+    # '/budget delete' command
+    @app_commands.command(name="delete",
+                            description='Delete your previously set budget')
+    @app_commands.describe(
+        period="How often your budget resets")
+    @app_commands.autocomplete(period=period_autocomplete)
+    # only users with the "Manage Server" permission can run this command
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def set_channel(
+        self,
+        interaction: discord.Interaction,
+        period: str
+    ):
+        
+        await database.delete_user_budget(
+            user_id=str(interaction.user.id),
+            budget_period=period
+        )
+
+        await interaction.response.send_message(
+            f"{period.capitalize()} budget has been removed.",
+            ephemeral=False
+        )

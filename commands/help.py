@@ -44,7 +44,8 @@ class HelpCommands(app_commands.Group):
             name="💰 Budget",
             value=(
                 "`/budget set`: Set your budget amount and period\n"
-                "`/budget setchannel`: Set the channel for automatic summaries\n"
+                "`/budget setchannel`: Set/Update the channel/Opt in for automatic summaries\n"
+                "`/budget delete`: Delete a previously set budget\n"
             ),
             inline=False
         )
