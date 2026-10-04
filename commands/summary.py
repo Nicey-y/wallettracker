@@ -1,3 +1,4 @@
+import aiosqlite
 import discord
 from discord import app_commands
 from datetime import datetime, timedelta, timezone
@@ -52,28 +53,39 @@ class SummaryCommands(app_commands.Group):
     
     @app_commands.command(name="show",
                           description="Show your spending summary for the current period.")
-    async def show(self, interaction: discord.Interaction):
+    @app_commands.describe(
+        period="How often your budget resets"
+    )
+    # show a dropdown menu for the period argument
+    @app_commands.choices(period=[
+        app_commands.Choice(name="Daily",   value="daily"),
+        app_commands.Choice(name="Weekly",  value="weekly"),
+        app_commands.Choice(name="Monthly",  value="monthly"),
+    ])
+    async def show(self, 
+                   interaction: discord.Interaction,
+                   period: app_commands.Choice[str]):
 
         user_id = str(interaction.user.id)
         guild_id = str(interaction.guild.id)
 
         # Fetch user's budget
-        budget_row = await database.get_budget_for_period(user_id, guild_id)
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            budget_amount, budget_period = await database.get_budget_for_period(conn, user_id, period.value)
 
-        if budget_row is None:
+        if budget_amount is None:
             await interaction.response.send_message(
                 "❌ You haven't set a budget yet. Run `/budget set` first.",
                 ephemeral=False
             )
             return
-        
-        budget_amount, budget_period = budget_row
 
         # Work out when the current period started
         period_start = get_period_start(budget_period)
 
         # Fetch all entries since the beginning of the period
-        entries = await database.get_entries_for_user_since(user_id, guild_id, period_start)
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            entries = await database.get_entries_for_user_since(conn, user_id, period_start)
 
         # Add up total spent
         total_spent = sum(row[0] for row in entries)
@@ -163,8 +175,9 @@ class SummaryCommands(app_commands.Group):
                 ephemeral=False
             )
             return
-        
-        await database.set_user_timezone(str(interaction.user.id), tz)
+
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            await database.set_user_timezone(conn, str(interaction.user.id), tz)
 
         # Show the user their current local time as confirmation
         local_time = datetime.now(pytz.timezone(tz)).strftime("%H:%M, %A %d %B %Y")
@@ -176,13 +189,26 @@ class SummaryCommands(app_commands.Group):
         )
 
     @app_commands.command(name="optout", description="Stop receiving automatic spending summaries")
-    async def optout(self, interaction: discord.Interaction):
+    @app_commands.describe(
+        period="How often your budget resets"
+    )
+    # show a dropdown menu for the period argument
+    @app_commands.choices(period=[
+        app_commands.Choice(name="Daily",   value="daily"),
+        app_commands.Choice(name="Weekly",  value="weekly"),
+        app_commands.Choice(name="Monthly",  value="monthly"),
+    ])
+    async def optout(self, 
+                     interaction: discord.Interaction,
+                     period: app_commands.Choice[str]):
         user_id  = str(interaction.user.id)
         guild_id = str(interaction.guild.id)
 
         # Check they actually have a budget set
-        budget_row = await database.get_budget_for_period(user_id, guild_id)
-        if budget_row is None:
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            budget_amount, budget_period = await database.get_budget_for_period(conn, user_id, period.value)
+
+        if budget_amount is None:
             await interaction.response.send_message(
                 "❌ You don't have a budget set up yet. Run `/quicksetup start` first.",
                 ephemeral=True
@@ -190,55 +216,21 @@ class SummaryCommands(app_commands.Group):
             return
 
         # Check if they're already opted out
-        if not await database.get_opted_in_for_period(user_id, guild_id):
-            await interaction.response.send_message(
-                "You're already opted out of automatic summaries. "
-                "Run `/summary optin` to opt back in.",
-                ephemeral=True
-            )
-            return
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            if not await database.get_opted_in_for_period(conn, user_id, period.value):
+                await interaction.response.send_message(
+                    "You're already opted out of automatic summaries. "
+                    "Run `/budget setchannel` to opt back in.",
+                    ephemeral=True
+                )
+                return
 
-        await database.set_opted_in_for_period(user_id, guild_id, False)
+        async with aiosqlite.connect(database.DB_PATH) as conn:
+            await database.set_opted_out_for_period(conn, user_id, period.value)
 
         await interaction.response.send_message(
             "✅ You've opted out of automatic summaries.\n"
             "Your budget and spending data are still saved — run `/summary optin` any time to opt back in.\n"
             "You can still view your summary manually with `/summary show`.",
-            ephemeral=True
-        )
-
-    @app_commands.command(name="optin", 
-                          description="Resume receiving automatic spending summaries")
-    async def optin(self, interaction: discord.Interaction):
-        user_id  = str(interaction.user.id)
-        guild_id = str(interaction.guild.id)
-
-        # Check they actually have a budget set
-        budget_row = await database.get_budget_for_period(user_id, guild_id)
-        if budget_row is None:
-            await interaction.response.send_message(
-                "❌ You don't have a budget set up yet. Run `/quicksetup start` first.",
-                ephemeral=True
-            )
-            return
-
-        # Check if they're already opted in
-        if await database.get_opted_in_for_period(user_id, guild_id):
-            await interaction.response.send_message(
-                "You're already opted in to automatic summaries. "
-                "Run `/summary optout` to opt out.",
-                ephemeral=True
-            )
-            return
-
-        await database.set_opted_in_for_period(user_id, guild_id, True)
-
-        # Fetch their budget details to show in the confirmation
-        budget_amount, budget_period = budget_row
-
-        await interaction.response.send_message(
-            f"✅ You've opted back in to automatic summaries.\n"
-            f"You'll receive a **{budget_period}** summary at **8pm your local time** "
-            f"at the end of each {budget_period} period.",
             ephemeral=True
         )
