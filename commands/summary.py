@@ -69,8 +69,7 @@ class SummaryCommands(app_commands.Group):
         user_id = str(interaction.user.id)
 
         # Fetch user's budget
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            budget_amount, budget_period = await database.get_budget_for_period(conn, user_id, period.value)
+        budget_amount, budget_period = await database.get_budget_for_period(user_id, period.value)
 
         if budget_amount is None:
             await interaction.response.send_message(
@@ -83,8 +82,7 @@ class SummaryCommands(app_commands.Group):
         period_start = get_period_start(budget_period)
 
         # Fetch all entries since the beginning of the period
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            entries = await database.get_entries_for_user_since(conn, user_id, period_start)
+        entries = await database.get_entries_for_user_since(user_id, period_start)
 
         # Add up total spent
         total_spent = sum(row[0] for row in entries)
@@ -174,9 +172,8 @@ class SummaryCommands(app_commands.Group):
                 ephemeral=False
             )
             return
-
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            await database.set_user_timezone(conn, str(interaction.user.id), tz)
+        
+        await database.set_user_timezone(str(interaction.user.id), tz)
 
         # Show the user their current local time as confirmation
         local_time = datetime.now(pytz.timezone(tz)).strftime("%H:%M, %A %d %B %Y")
@@ -203,8 +200,7 @@ class SummaryCommands(app_commands.Group):
         user_id  = str(interaction.user.id)
 
         # Check they actually have a budget set
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            budget_amount, budget_period = await database.get_budget_for_period(conn, user_id, period.value)
+        budget_amount, budget_period = await database.get_budget_for_period(user_id, period.value)
 
         if budget_amount is None:
             await interaction.response.send_message(
@@ -214,17 +210,15 @@ class SummaryCommands(app_commands.Group):
             return
 
         # Check if they're already opted out
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            if not await database.get_opted_in_for_period(conn, user_id, period.value):
-                await interaction.response.send_message(
-                    "You're already opted out of automatic summaries. "
-                    "Run `/budget setchannel` to opt back in.",
-                    ephemeral=True
-                )
-                return
+        if not await database.get_opted_in_for_period(user_id, period.value):
+            await interaction.response.send_message(
+                "You're already opted out of automatic summaries. "
+                "Run `/budget setchannel` to opt back in.",
+                ephemeral=True
+            )
+            return
 
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            await database.set_opted_out_for_period(conn, user_id, period.value)
+        await database.set_opted_out_for_period(user_id, period.value)
 
         await interaction.response.send_message(
             "✅ You've opted out of automatic summaries.\n"

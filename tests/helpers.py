@@ -12,6 +12,6 @@ async def add_1_entry_return_id(conn: aiosqlite.Connection) -> int:
     Returns:
         int: _description_
     """
-    await add_entry(conn, 'user1', 20.00, 'Grocery')
-    entry = await get_recent_entries_by_user(conn, 'user1', 1)
+    await add_entry('user1', 20.00, 'Grocery', conn)
+    entry = await get_recent_entries_by_user('user1', 1, conn)
     return entry[0][0]

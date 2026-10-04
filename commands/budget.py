@@ -46,13 +46,11 @@ class BudgetCommands(app_commands.Group):
             )
             return
 
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            await database.set_budget(
-                conn,
-                user_id=str(interaction.user.id),
-                amount=amount,
-                period=period.value # period is a Choice object, .value gives us the lowercase value string
-            )
+        await database.set_budget(
+            user_id=str(interaction.user.id),
+            amount=amount,
+            period=period.value # period is a Choice object, .value gives us the lowercase value string
+        )
 
         await interaction.response.send_message(
             f"✅ Budget set to **${amount:.2f}** per **{period.name.lower()}**.\n"
@@ -81,14 +79,13 @@ class BudgetCommands(app_commands.Group):
                                      # user clicks a channel from a dropdown rather than typing a name
         period: app_commands.Choice[str]
     ):
-        async with aiosqlite.connect(database.DB_PATH) as conn:
-            await database.set_summary_channel_for_budget(
-                conn,
-                guild_id=str(interaction.guild.id),
-                channel_id=str(channel.id),
-                user_id=str(interaction.user.id),
-                budget_period=period.value # take lowercase value
-            )
+        
+        await database.set_summary_channel_for_budget(
+            guild_id=str(interaction.guild.id),
+            channel_id=str(channel.id),
+            user_id=str(interaction.user.id),
+            budget_period=period.value # take lowercase value
+        )
 
         await interaction.response.send_message(
             f"Automatic summaries will be posted in {channel.mention}.",
