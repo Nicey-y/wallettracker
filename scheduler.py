@@ -74,7 +74,7 @@ def is_summary_due(budget_period: str, user_tz: str) -> bool:
 
     return False
 
-async def send_scheduled_summaries():
+async def send_scheduled_summaries(budget_period: str):
     """Runs every hour. Checks every user's budget period and timezone,
     and sends a summary if one is due.
 
@@ -200,7 +200,18 @@ def start_scheduler(bot):
     # Runs at the top of every hour
     scheduler.add_job(
         send_scheduled_summaries,
-        CronTrigger(minute=0, timezone="UTC")
+        CronTrigger(minute=0, timezone="UTC"),
+        ['daily']
+    )
+    scheduler.add_job(
+        send_scheduled_summaries,
+        CronTrigger(minute=0, timezone="UTC"),
+        ['weekly']
+    )
+    scheduler.add_job(
+        send_scheduled_summaries,
+        CronTrigger(minute=0, timezone="UTC"),
+        ['monthly']
     )
 
     scheduler.start()
