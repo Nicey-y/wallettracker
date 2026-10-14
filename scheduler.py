@@ -201,17 +201,20 @@ def start_scheduler(bot):
     scheduler.add_job(
         send_scheduled_summaries,
         CronTrigger(minute=0, timezone="UTC"),
-        ['daily']
+        ['daily'],
+        misfire_grace_time=30
     )
     scheduler.add_job(
         send_scheduled_summaries,
         CronTrigger(minute=0, timezone="UTC"),
-        ['weekly']
+        ['weekly'],
+        misfire_grace_time=30
     )
     scheduler.add_job(
         send_scheduled_summaries,
         CronTrigger(minute=0, timezone="UTC"),
-        ['monthly']
+        ['monthly'],
+        misfire_grace_time=30
     )
 
     scheduler.start()
