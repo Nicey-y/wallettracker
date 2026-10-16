@@ -96,7 +96,7 @@ class BudgetCommands(app_commands.Group):
     @app_commands.autocomplete(period=period_autocomplete)
     # only users with the "Manage Server" permission can run this command
     @app_commands.checks.has_permissions(manage_guild=True)
-    async def set_channel(
+    async def delete_budget(
         self,
         interaction: discord.Interaction,
         period: str
