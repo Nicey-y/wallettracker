@@ -276,7 +276,10 @@ async def get_budget_for_user_period(user_id: str,
             """,
             (user_id, budget_period)
         ) as cursor:
-            return await cursor.fetchone()
+            res = await cursor.fetchone()
+            if res is None:
+                return (None, None)
+            return res
     except Exception as e:
         raise Exception(f"Error getting budget for period: {e}")
 
